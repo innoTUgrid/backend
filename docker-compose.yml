@@ -1,0 +1,33 @@
+#compose
+version: '3.9'
+
+services:
+
+  app:
+    container_name: rustapp
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: postgres://db_user:db_password@db:5432/db_name
+    ports:
+      - '8080:3000'
+    #environment:
+      #- DATABASE_URL=postgres://pg_user:pg_password@db:5432/pg_name
+    depends_on:
+      - db
+    
+  db:
+    container_name: timescaledb
+    image: 'timescale/timescaledb:latest-pg14'
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_DB=db_name
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_password
+    volumes:
+      - pgdata:/var/lib/timescaledb/data
+  
+volumes:
+  pgdata: {}
