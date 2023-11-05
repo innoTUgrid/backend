@@ -28,6 +28,7 @@ services:
       - POSTGRES_PASSWORD=db_password
     volumes:
       - pgdata:/var/lib/timescaledb/data
+      - ./initdb:/docker-entrypoint-initdb.d
   
 volumes:
   pgdata: {}
