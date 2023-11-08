@@ -12,7 +12,7 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://db_user:db_password@db:${POSTGRES_PORT}/db_name
+      DATABASE_URL: postgres://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB_NAME}
     
   db:
     container_name: timescaledb
