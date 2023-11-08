@@ -1,0 +1,38 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: db_name
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_password
+        ports:
+          - 8192:8192
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt -- --check
+      - name: Lint
+        run: cargo clippy -- -D warnings
+      - name: Test
+        run: cargo test
+        env:
+          DATABASE_URL: postgres://db_user:db_password@localhost:8192/db_name
+
+
+
+
