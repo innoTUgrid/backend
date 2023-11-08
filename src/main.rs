@@ -7,16 +7,16 @@ async fn create_connection_pool() -> Pool<Postgres> {
     dotenv().ok();
     let database_url =
         std::env::var("DATABASE_URL").expect("Couldn't find database url in .env file");
-    let pool = Pool::<Postgres>::connect(&database_url)
+    Pool::<Postgres>::connect(&database_url)
         .await
-        .expect("Failed to create database connection pool");
-    pool
+        .expect("Failed to create database connection pool")
 }
 
 #[tokio::main]
 async fn main() {
     // build our application with a single route
     let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let _pool = create_connection_pool().await;
 
     // run it with hyper on localhost:3000
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
