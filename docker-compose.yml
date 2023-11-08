@@ -20,9 +20,9 @@ services:
     ports:
       - '${POSTGRES_PORT}:5432'
     environment:
-      - POSTGRES_DB=db_name
-      - POSTGRES_USER=db_user
-      - POSTGRES_PASSWORD=db_password
+      - POSTGRES_DB=${POSTGRES_DB_NAME}
+      - POSTGRES_USER=${POSTGRES_DB_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/timescaledb/data
       - ./initdb:/docker-entrypoint-initdb.d
