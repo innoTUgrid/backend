@@ -8,14 +8,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DATABASE_URL: postgres://db_user:db_password@db:5432/db_name
     ports:
       - '8080:3000'
     #environment:
       #- DATABASE_URL=postgres://pg_user:pg_password@db:5432/pg_name
     depends_on:
       - db
+    environment:
+      DATABASE_URL: postgres://db_user:db_password@db:${POSTGRES_PORT}/db_name
     
   db:
     container_name: timescaledb
