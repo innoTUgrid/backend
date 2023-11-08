@@ -13,3 +13,4 @@ Cargo.lock
 .swp
 # IDEA files
 .idea/
+.DS_Store
