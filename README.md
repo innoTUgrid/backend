@@ -1,3 +1,3 @@
-# dockerized backend for innoTUgrid WebApp
+# Backend services for innoTUgrid
 
-to be continued ...
+The backend consists of multiple independent services each providing different functionality. 
