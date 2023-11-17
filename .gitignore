@@ -14,3 +14,4 @@ Cargo.lock
 # IDEA files
 .idea/
 .DS_Store
+__pycache__/
