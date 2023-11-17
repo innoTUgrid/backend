@@ -84,7 +84,7 @@ async fn read_meta(
     let mut meta_query = sqlx::query(
         "select id, identifier, unit, carrier from meta order by id offset $1 limit $2",
     );
-    meta_query = meta_query.bind(&query_offset);
+    meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.0.per_page.unwrap_or_default());
     let meta_rows = meta_query.fetch_all(&pool).await?;
     let mut json_values: Vec<MetaOutput> = vec![];
@@ -105,7 +105,7 @@ async fn read_meta(
     Ok(Json(meta_rows))
 }
 
-async fn ping(State(pool): State<Pool<Postgres>>) -> Json<PingResponse> {
+async fn ping(State(_pool): State<Pool<Postgres>>) -> Json<PingResponse> {
     Json(PingResponse::default())
 }
 

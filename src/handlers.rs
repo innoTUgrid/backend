@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::Json;
 use futures::TryStreamExt;
 use sqlx::{Pool, Postgres};
-use time::OffsetDateTime;
+
 
 /// Get all timeseries values for specific metadata
 pub async fn get_timeseries_by_identifier(
