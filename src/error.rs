@@ -41,9 +41,6 @@ impl IntoResponse for ApiError {
         (status, message).into_response()
     }
 }
-
-/// custom trait to allow for simple mapping of database constraints to api errors
-/// taken from https://github.com/davidpdrsn/realworld-axum-sqlx/blob/main/src/http/error.rs#L193
 pub trait ResultExt<T> {
     fn on_constraint(
         self,
