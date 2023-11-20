@@ -7,7 +7,7 @@ use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
-use crate::error::{self, ApiError};
+use crate::error::{ApiError};
 
 /// wrap postgres timestamptz to achieve human-readable serialization
 #[derive(sqlx::Type)]

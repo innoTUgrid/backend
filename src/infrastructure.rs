@@ -15,13 +15,13 @@ pub async fn create_connection_pool() -> Pool<Postgres> {
 }
 
 pub fn create_router(pool: Pool<Postgres>) -> Router {
-    let app = Router::new()
+    
+    Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
-        .with_state(pool);
-    app
+        .with_state(pool)
 }

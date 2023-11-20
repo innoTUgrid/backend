@@ -13,7 +13,7 @@ use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
 
 use crate::{
-    error::ApiError, infrastructure::create_connection_pool, infrastructure::create_router,
+    error::ApiError,
 };
 
 /// timeseries values for specific metadata and a given interval
@@ -49,7 +49,7 @@ pub async fn resample_timeseries_by_identifier(
     .await?;
 
     let response = ResampledTimeseries {
-        datapoints: datapoints,
+        datapoints,
         meta: metadata,
     };
     Ok(Json(response))
@@ -104,7 +104,7 @@ pub async fn get_timeseries_by_identifier(
     };
 
     let response = Timeseries {
-        datapoints: datapoints,
+        datapoints,
         meta: metadata,
     };
 
@@ -136,7 +136,7 @@ pub async fn add_timeseries(
     .fetch_one(&pool)
     .await?;
     Ok(Json(TimeseriesBody {
-        timeseries: timeseries,
+        timeseries,
     }))
 }
 
