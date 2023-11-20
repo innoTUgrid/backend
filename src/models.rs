@@ -1,9 +1,13 @@
-use crate::error::ApiError;
+use anyhow::anyhow;
+use regex::Regex;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sqlx::postgres::types::PgInterval;
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
+
+use crate::error::{self, ApiError};
 
 /// wrap postgres timestamptz to achieve human-readable serialization
 #[derive(sqlx::Type)]
@@ -26,19 +30,6 @@ impl<'de> Deserialize<'de> for Timestamptz {
         D: Deserializer<'de>,
     {
         struct StrVisitor;
-
-        // By providing our own `Visitor` impl, we can access the string data without copying.
-        //
-        // We could deserialize a borrowed `&str` directly but certain deserialization modes
-        // of `serde_json` don't support that, so we'd be forced to always deserialize `String`.
-        //
-        // `serde_with` has a helper for this but it can be a bit overkill to bring in
-        // just for one type: https://docs.rs/serde_with/latest/serde_with/#displayfromstr
-        //
-        // We'd still need to implement `Display` and `FromStr`, but those are much simpler
-        // to work with.
-        //
-        // However, I also wanted to demonstrate that it was possible to do this with Serde alone.
         impl Visitor<'_> for StrVisitor {
             type Value = Timestamptz;
 
@@ -69,8 +60,35 @@ pub struct TimeseriesMeta {
     pub consumption: Option<bool>,
 }
 
+#[derive(sqlx::FromRow, Serialize)]
+pub struct Datapoint {
+    pub id: i64,
+    pub timestamp: OffsetDateTime,
+    pub value: f64,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
+#[derive(sqlx::FromRow)]
+/// TimescaleDB's `time_bucket` function returns a nullable column
+pub struct ResampledDatapoint {
+    pub timestamp: Option<OffsetDateTime>,
+    pub mean_value: Option<f64>,
+}
+
 #[derive(Serialize)]
-pub struct TimeseriesFlat {
+pub struct Timeseries {
+    pub datapoints: Vec<Datapoint>,
+    pub meta: TimeseriesMeta,
+}
+
+pub struct ResampledTimeseries {
+    pub datapoints: Vec<ResampledDatapoint>,
+    pub meta: TimeseriesMeta,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TimeseriesWithoutMetadata {
     pub id: i64,
     pub series_timestamp: OffsetDateTime,
     pub series_value: f64,
@@ -78,17 +96,8 @@ pub struct TimeseriesFlat {
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(Serialize)]
-pub struct Timeseries {
-    pub id: i64,
-    pub series_timestamp: Timestamptz,
-    pub series_value: f64,
-    pub created_at: Timestamptz,
-    pub updated_at: Timestamptz,
-    pub meta: TimeseriesMeta,
-}
-
-pub struct TimeseriesFromQuery {
+/// Intermediate representation for timeseries data from the database
+pub struct TimeseriesWithMetadata {
     pub series_id: i64,
     pub series_timestamp: OffsetDateTime,
     pub series_value: f64,
@@ -101,25 +110,6 @@ pub struct TimeseriesFromQuery {
     pub consumption: Option<bool>,
 }
 
-impl TimeseriesFromQuery {
-    pub fn into_timeseries(self) -> Timeseries {
-        Timeseries {
-            id: self.series_id,
-            series_timestamp: Timestamptz(self.series_timestamp),
-            series_value: self.series_value,
-            created_at: Timestamptz(self.created_at),
-            updated_at: Timestamptz(self.updated_at),
-            meta: TimeseriesMeta {
-                id: self.meta_id,
-                identifier: self.identifier,
-                unit: self.unit,
-                carrier: self.carrier,
-                consumption: self.consumption,
-            },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 struct CreateMetadata {
     name: String,
@@ -127,13 +117,7 @@ struct CreateMetadata {
     carrier: Option<String>,
     consumption: Option<bool>,
 }
-
-struct GetMetadata {
-    limit: Option<usize>,
-    offset: Option<usize>,
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct TimeseriesNew {
     #[serde(with = "time::serde::rfc3339")]
     pub series_timestamp: OffsetDateTime,
@@ -144,10 +128,6 @@ pub struct TimeseriesNew {
 #[derive(Serialize, Deserialize)]
 pub struct TimeseriesBody<T = Timeseries> {
     pub timeseries: T,
-}
-#[derive(Serialize)]
-pub struct TimeseriesResponse {
-    pub data: Vec<Timeseries>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct SingleMetaResponse {
@@ -173,4 +153,106 @@ impl Default for PingResponse {
     fn default() -> Self {
         Self::new(String::from("0xDECAFBAD"))
     }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct MetaInput {
+    pub identifier: String,
+    pub unit: String,
+    pub carrier: Option<String>,
+}
+#[derive(Serialize)]
+pub struct MetaOutput {
+    pub id: i32,
+    pub identifier: String,
+    pub unit: String,
+    pub carrier: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct MetaRows {
+    pub values: Vec<MetaOutput>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Pagination {
+    pub page: Option<i32>,
+    pub per_page: Option<i32>,
+}
+
+impl Default for Pagination {
+    fn default() -> Self {
+        Self {
+            page: Option::from(1),
+            per_page: Option::from(1000),
+        }
+    }
+}
+/// `Resampling` is a struct that represents the resampling configuration which is passed as a query parameter
+/// to endpoints that return resampled timeseries data.
+/// It contains an `interval` field which is a string that specifies the resampling interval.
+/// We assume that the resampling method is always taking the mean.
+#[derive(Debug, Deserialize)]
+pub struct Resampling {
+    pub interval: String,
+}
+
+/// Provides a default instance of `Resampling`.
+/// The default `interval` is "1hour".
+impl Default for Resampling {
+    fn default() -> Self {
+        Self {
+            interval: String::from("1hour"),
+        }
+    }
+}
+
+impl Resampling {
+    pub fn map_interval(&self) -> std::result::Result<PgInterval, anyhow::Error> {
+        let re = Regex::new(r"(\d+)(\w+)").unwrap();
+        let caps = re
+            .captures(&self.interval)
+            .ok_or_else(|| anyhow!("Invalid interval format"))?;
+        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<i64>()?;
+        let unit_part = caps.get(2).map_or("", |m| m.as_str());
+
+        let duration = match unit_part {
+            "min" => Duration::minutes(num_part),
+            "hour" => Duration::hours(num_part),
+            "day" => Duration::days(num_part),
+            "week" => Duration::weeks(num_part),
+            "month" => Duration::weeks(4 * num_part), // Approximation
+            "year" => Duration::weeks(52 * num_part), // Approximation
+            _ => return Err(anyhow!("invalid interval format")),
+        };
+
+        let encoded = PgInterval::try_from(duration).unwrap();
+        Ok(encoded)
+    }
+}
+#[test]
+fn test_map_interval() {
+    let resample = Resampling {
+        interval: String::from("1hour"),
+    };
+
+    assert_eq!(
+        resample.map_interval().unwrap(),
+        PgInterval::try_from(Duration::hours(1)).unwrap()
+    );
+
+    let resample = Resampling {
+        interval: String::from("30min"),
+    };
+
+    assert_eq!(
+        resample.map_interval().unwrap(),
+        PgInterval::try_from(Duration::minutes(30)).unwrap()
+    );
+
+    let resample = Resampling {
+        interval: String::from("invalid"),
+    };
+
+    assert!(resample.map_interval().is_err());
 }
