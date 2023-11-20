@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.6.20"
-sqlx = { version =  "0.7.2" , features = ["postgres", "runtime-tokio", "time"]}
+sqlx = { version =  "0.7.2" , features = ["postgres", "runtime-tokio", "time",]}
 tokio = { version = "1.33.0", features = ["full"] }
 dotenv = "0.15.0"
 serde = { version = "1.0.192", features = [] }
@@ -17,6 +17,9 @@ thiserror = "1.0.50"
 axum-extra = "0.8.0"
 time = { version = "0.3.30",  features = ["formatting", "parsing", "serde"]}
 futures = "0.3.29"
+regex = "1.10.2"
+reqwest = {version = "0.11.22", features = ["json"]}
+axum-test-helper = "0.3.0"
 #hyper = { version = "0.14.27", features = ["full"] }
 #tower = "0.4.13"
 #tokio-postgres = "0.7.10"
