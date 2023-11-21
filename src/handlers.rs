@@ -192,15 +192,13 @@ pub async fn add_meta(
 mod tests {
     use super::*;
     use crate::infrastructure::create_router;
+    use crate::infrastructure::create_connection_pool;
     use axum_test_helper::TestClient;
-    use dotenv::dotenv;
-    use reqwest::Client;
+    use serde_json::json;
     use time::OffsetDateTime;
 
     #[tokio::test]
     async fn test_add_timeseries() {
-        dotenv().ok();
-
         let pool = create_connection_pool().await;
         let router = create_router(pool);
 
@@ -220,9 +218,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_add_meta() {
-        dotenv().ok();
+    async fn test_add_timeseries_bad_data() {
+        let pool = create_connection_pool().await;
+        let router = create_router(pool);
+        let client = TestClient::new(router);
 
+        let rfc_3339_format = &time::format_description::well_known::Rfc3339; 
+        let timeseries = json!({
+            "series_timestamp": OffsetDateTime::now_utc().format(rfc_3339_format).unwrap(),
+            "series_value": 42,
+            "wrongKey": String::from("testIdentifier"),
+        });
+        let response = client
+            .post("/v1/ts/")
+            .json(&TimeseriesBody { timeseries })
+            .send()
+            .await;
+        assert!(response.status().is_client_error());
+    }
+
+    #[tokio::test]
+    async fn test_add_meta() {
         let pool = create_connection_pool().await;
         let router = create_router(pool);
 
@@ -236,4 +252,44 @@ mod tests {
         let res = client.post("/v1/meta/").json(&meta).send().await;
         assert!(res.status().is_success());
     }
+
+    #[tokio::test]
+    async fn test_add_meta_bad_data() {
+        let pool = create_connection_pool().await;
+        let router = create_router(pool);
+        let client = TestClient::new(router);
+
+        let bad_metadata = json!(
+            {
+                "identifier": "testIdentifier",
+                "unitSchmunit": "testUnit",
+                "carrier": 42
+            }
+        );
+        let response = client.post("/v1/meta/").json(&bad_metadata).send().await;
+        assert!(response.status().is_client_error());
+    }
+
+    #[tokio::test]
+    async fn test_read_meta() {
+
+    }
+
+    #[tokio::test]
+    async fn test_ping() {
+        // Setup
+        let pool = create_connection_pool().await;
+        let app = create_router(pool.clone());
+        let client = TestClient::new(app);
+    
+        // Send a request to the ping endpoint
+        let response = client.get("/v1/").send().await;
+    
+        // Verify the response
+        assert!(response.status().is_success());
+        let body: PingResponse = response.json().await;
+        assert_eq!(body.message, "0xDECAFBAD");
+    }
+
 }
+
