@@ -139,7 +139,7 @@ pub struct ManyMetaResponse {
     pub count: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PingResponse {
     pub message: String,
 }
