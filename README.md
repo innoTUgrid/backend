@@ -3,18 +3,18 @@
 The backend consists of multiple independent services each providing different functionality.
 
 ### how to run this code
-
-- start the container running the database detached from the terminal
+1. start the container running the database detached from the terminal
 `docker compose up db`
-- check if container is running
+2. check if container is running
 `docker ps`
-- execute migrations
+3. execute migrations
 `sqlx migrate run`
-- compile & start backend server
+4. compile & start backend server
 `cargo run`
-- test API endpoint using ~curl~
+5. test API endpoint using *curl*
 `curl -X GET localhost:3000`
 
+### access database
 - access the database container
 `docker exec -it timescaledb bash`
 - log into database
