@@ -8,6 +8,9 @@ mod models;
 #[tokio::main]
 async fn main() {
     let _pool = create_connection_pool().await;
+
+    //run_migrations(&_pool).await.expect("Failed to run migrations");
+
     let app = create_router(_pool);
 
     // run it with hyper on localhost:3000

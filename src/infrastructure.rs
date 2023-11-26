@@ -5,10 +5,18 @@ use dotenv::dotenv;
 use sqlx::Pool;
 use sqlx::Postgres;
 
+/*
+// should run migrations but fails to do so
+pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
+    sqlx::migrate!("./migrations").run(pool).await
+}*/
+
 pub async fn create_connection_pool() -> Pool<Postgres> {
     dotenv().ok();
+    
     let database_url =
         std::env::var("DATABASE_URL").expect("Couldn't find database url in .env file");
+    
     Pool::<Postgres>::connect(&database_url)
         .await
         .expect("Failed to create database connection pool")
