@@ -1,5 +1,5 @@
 use axum::extract::rejection::JsonRejection;
-use axum::extract::multipart::MultipartRejection;
+use axum::extract::multipart::MultipartError;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -11,7 +11,8 @@ pub enum ApiError {
     JsonExtractorRejection(#[from] JsonRejection),
     //#[error("multipart error: {0}")]
     #[error(transparent)]
-    MultipartError(#[from] MultipartRejection),
+    MultipartRejectionError(#[from] MultipartError),
+    // implement for trait `From<sqlx::Error>`
     #[error(transparent)]
     DatabaseError(#[from] sqlx::Error),
     #[error("request path not found")]
@@ -20,17 +21,21 @@ pub enum ApiError {
     Anyhow(#[from] anyhow::Error),
 }
 
+/*
+*/
 impl ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::JsonExtractorRejection(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::MultipartError(_) => StatusCode::BAD_REQUEST,
+            Self::MultipartRejectionError(_) => StatusCode::BAD_REQUEST,
             Self::DatabaseError(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
+/*
+*/
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
