@@ -8,9 +8,12 @@ use crate::models::{
     ResampledTimeseries, Resampling, Result, TimeseriesWithMetadata,
 };
 use axum::extract::{Path, Query, State};
+use axum::extract::Multipart;
 use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
+//use std::io::Cursor;
+//use csv_async::AsyncReaderBuilder;
 
 use crate::{
     error::ApiError,
@@ -111,10 +114,12 @@ pub async fn get_timeseries_by_identifier(
     Ok(Json(response))
 }
 
+/**/
 pub async fn add_timeseries(
     State(pool): State<Pool<Postgres>>,
     req: Json<TimeseriesBody<TimeseriesNew>>,
 ) -> Result<Json<TimeseriesBody<TimeseriesWithoutMetadata>>> {
+
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
@@ -122,6 +127,7 @@ pub async fn add_timeseries(
     )
     .fetch_one(&pool)
     .await?;
+    
     let timeseries = sqlx::query_as!(
         TimeseriesWithoutMetadata,
         r#"
@@ -135,9 +141,30 @@ pub async fn add_timeseries(
     )
     .fetch_one(&pool)
     .await?;
+    
     Ok(Json(TimeseriesBody {
         timeseries,
     }))
+}
+
+/*
+upload a file from a form and bulk insert it into the database
+*/
+pub async fn upload_timeseries(
+    State(pool): State<Pool<Postgres>>,
+    mut multipart: Multipart,
+) -> Result<Json<String>, ApiError> {
+    // iterate over the fields of the form data
+    while let Some(field) = multipart.next_field().await? {
+        let field_name = field.name().unwrap_or_else(|| "Unnamed field").to_string();
+        if let Some(file_name) = field.file_name() {
+            if file_name.ends_with(".csv") {
+                let data = field.bytes().await?;
+                println!("Length of `{}` is {} bytes", field_name, data.len());
+            }
+        }
+    }
+    Ok(Json("File uploaded successfully".to_string()))
 }
 
 pub async fn read_meta(
@@ -176,19 +203,20 @@ pub async fn add_meta(
     State(pool): State<Pool<Postgres>>,
     WithRejection(Json(meta), _): WithRejection<Json<MetaInput>, ApiError>,
 ) -> Result<Json<MetaOutput>, ApiError> {
-    let meta_output: MetaOutput = sqlx::query_as!(MetaOutput,
-    "insert into meta (identifier, unit, carrier) values ($1, $2, $3) returning id, identifier, unit, carrier",
-    &meta.identifier,
-    &meta.unit,
-    meta.carrier.as_deref(),
+    let meta_output: MetaOutput = sqlx::query_as!(
+        MetaOutput,
+        "insert into meta (identifier, unit, carrier) values ($1, $2, $3) returning id, identifier, unit, carrier",
+        &meta.identifier,
+        &meta.unit,
+        meta.carrier.as_deref(),
     )
-        .fetch_one(&pool)
-        .await?;
+    .fetch_one(&pool)
+    .await?;
+
     Ok(Json(meta_output))
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
     use crate::infrastructure::create_router;
@@ -272,7 +300,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_meta() {
-
+        let pool = create_connection_pool().await;
+        let router = create_router(pool);
+        let client = TestClient::new(router);
+        let response = client.get("/v1/meta/").send().await;
+        assert!(response.status().is_success());
+        
+        let body: MetaRows = response.json().await;
     }
 
     #[tokio::test]

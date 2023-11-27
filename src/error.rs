@@ -1,4 +1,5 @@
 use axum::extract::rejection::JsonRejection;
+use axum::extract::Multipart::MultipartRejection;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -8,6 +9,9 @@ use sqlx::error::DatabaseError;
 pub enum ApiError {
     #[error(transparent)]
     JsonExtractorRejection(#[from] JsonRejection),
+    //#[error("multipart error: {0}")]
+    #[error(transparent)]
+    MultipartError(#[from] MultipartRejection),
     #[error(transparent)]
     DatabaseError(#[from] sqlx::Error),
     #[error("request path not found")]
@@ -21,6 +25,7 @@ impl ApiError {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::JsonExtractorRejection(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::MultipartError(_) => StatusCode::BAD_REQUEST,
             Self::DatabaseError(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

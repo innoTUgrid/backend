@@ -1,6 +1,7 @@
-use crate::handlers::{add_meta, add_timeseries, get_timeseries_by_identifier, ping, read_meta};
+use crate::handlers::{add_meta, add_timeseries, upload_timeseries, get_timeseries_by_identifier, ping, read_meta};
 use axum::routing::post;
 use axum::{routing::get, Router};
+use axum::extract::DefaultBodyLimit;
 use dotenv::dotenv;
 use sqlx::Pool;
 use sqlx::Postgres;
@@ -30,6 +31,9 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
+        .route("/v1/ts/upload", post(upload_timeseries))
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
+        // limit file size to 10MB
+        .layer(DefaultBodyLimit::max(1024*1024*10))
         .with_state(pool)
 }

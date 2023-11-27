@@ -4,14 +4,14 @@ The backend consists of multiple independent services each providing different f
 
 ### how to run this code
 1. start the container running the database detached from the terminal
-`docker compose up db`
+`docker compose up db -d`
 2. check if container is running
 `docker ps`
 3. execute migrations
 `sqlx migrate run`
 4. compile & start backend server
 `cargo run`
-5. test API endpoint using *curl*
+5. test API endpoint
 `curl -X GET localhost:3000`
 
 ### access database
