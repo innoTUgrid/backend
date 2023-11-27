@@ -169,7 +169,7 @@ pub async fn read_meta(
         "select id, identifier, unit, carrier from meta order by id offset $1 limit $2",
     );
     meta_query = meta_query.bind(query_offset);
-    meta_query = meta_query.bind(pagination.0.per_page.unwrap_or_default());
+    meta_query = meta_query.bind(pagination.get_per_page_or_default());
     let meta_rows = meta_query.fetch_all(&pool).await?;
     let mut json_values: Vec<MetaOutput> = vec![];
     for row in &meta_rows {
