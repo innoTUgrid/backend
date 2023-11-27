@@ -153,7 +153,7 @@ upload a file from a form and bulk insert it into the database
 pub async fn upload_timeseries(
     State(pool): State<Pool<Postgres>>,
     mut multipart: Multipart,
-) -> Result<Json<String>, ApiError> {
+) -> Result<Json<String>> {
     // iterate over the fields of the form data
     while let Some(field) = multipart.next_field().await? {
         let field_name = field.name().unwrap_or_else(|| "Unnamed field").to_string();

@@ -1,5 +1,5 @@
 use axum::extract::rejection::JsonRejection;
-use axum::extract::Multipart::MultipartRejection;
+use axum::extract::multipart::MultipartRejection;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
