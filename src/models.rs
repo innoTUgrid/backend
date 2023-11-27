@@ -60,7 +60,7 @@ pub struct TimeseriesMeta {
     pub consumption: Option<bool>,
 }
 
-#[derive(sqlx::FromRow, Serialize)]
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
 pub struct Datapoint {
     pub id: i64,
     pub timestamp: OffsetDateTime,
@@ -76,7 +76,7 @@ pub struct ResampledDatapoint {
     pub mean_value: Option<f64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Timeseries {
     pub datapoints: Vec<Datapoint>,
     pub meta: TimeseriesMeta,
@@ -161,7 +161,7 @@ pub struct MetaInput {
     pub unit: String,
     pub carrier: Option<String>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MetaOutput {
     pub id: i32,
     pub identifier: String,
@@ -169,7 +169,7 @@ pub struct MetaOutput {
     pub carrier: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct MetaRows {
     pub values: Vec<MetaOutput>,
 }
@@ -183,7 +183,7 @@ pub struct Pagination {
 impl Default for Pagination {
     fn default() -> Self {
         Self {
-            page: Option::from(1),
+            page: Option::from(0),
             per_page: Option::from(1000),
         }
     }

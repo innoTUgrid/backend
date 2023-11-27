@@ -28,6 +28,8 @@ jobs:
         run: cargo fmt -- --check
       - name: Lint
         run: cargo clippy -- -D warnings
+      - name: Init db
+        run: ./scripts/init_db.sh
       - name: Test
         run: cargo test
         env:

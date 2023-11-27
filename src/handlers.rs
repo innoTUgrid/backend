@@ -175,7 +175,7 @@ pub async fn read_meta(
     let query_offset =
         pagination.0.page.unwrap_or_default() * pagination.0.per_page.unwrap_or_default();
     let mut meta_query = sqlx::query(
-        "select id, identifier, unit, carrier from meta order by id offset $1 limit $2",
+        "select id, identifier, unit, carrier from meta order by id",
     );
     meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.0.per_page.unwrap_or_default());
@@ -225,18 +225,39 @@ mod tests {
     use axum_test_helper::TestClient;
     use serde_json::json;
     use time::OffsetDateTime;
+    use rand::distributions::{Alphanumeric, DistString};
 
-    #[tokio::test]
-    async fn test_add_timeseries() {
+
+    fn get_random_string(size: usize) -> String {
+        return Alphanumeric.sample_string(&mut rand::thread_rng(), size);
+    }
+
+    async fn get_client() -> TestClient {
         let pool = create_connection_pool().await;
         let router = create_router(pool);
+        
+        return TestClient::new(router);
+    }
 
-        let client = TestClient::new(router);
+    async fn add_meta(client: &TestClient, identifier: &str) -> MetaOutput {
+        let meta = MetaInput {
+            identifier: identifier.to_string(),
+            unit: String::from("testUnit"),
+            carrier: Some(String::from("testCarrier")),
+        };
+        let res = client.post("/v1/meta/").json(&meta).send().await;
+        assert!(res.status().is_success());
 
+        let r: MetaOutput = res.json().await;
+        assert_eq!(r.identifier, identifier);
+        return r;
+    }
+
+    async fn add_timeseries(client: &TestClient, identifier: &str) -> TimeseriesBody<TimeseriesWithoutMetadata> {
         let timeseries = TimeseriesNew {
             series_timestamp: OffsetDateTime::now_utc(),
             series_value: 42.0,
-            identifier: String::from("testIdentifier"),
+            identifier: identifier.to_string(),
         };
         let res = client
             .post("/v1/ts/")
@@ -244,19 +265,23 @@ mod tests {
             .send()
             .await;
         assert!(res.status().is_success());
+
+        let r: TimeseriesBody<TimeseriesWithoutMetadata> = res.json().await;
+        assert_eq!(r.timeseries.series_value, 42.0);
+        return r;
     }
 
     #[tokio::test]
     async fn test_add_timeseries_bad_data() {
-        let pool = create_connection_pool().await;
-        let router = create_router(pool);
-        let client = TestClient::new(router);
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+        add_meta(&client, &identifier).await;
 
         let rfc_3339_format = &time::format_description::well_known::Rfc3339; 
         let timeseries = json!({
             "series_timestamp": OffsetDateTime::now_utc().format(rfc_3339_format).unwrap(),
             "series_value": 42,
-            "wrongKey": String::from("testIdentifier"),
+            "wrongKey": identifier.to_string(),
         });
         let response = client
             .post("/v1/ts/")
@@ -267,26 +292,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_add_meta() {
-        let pool = create_connection_pool().await;
-        let router = create_router(pool);
-
-        let client = TestClient::new(router);
-
-        let meta = MetaInput {
-            identifier: String::from("testIdentifier"),
-            unit: String::from("testUnit"),
-            carrier: Some(String::from("testCarrier")),
-        };
-        let res = client.post("/v1/meta/").json(&meta).send().await;
-        assert!(res.status().is_success());
-    }
-
-    #[tokio::test]
     async fn test_add_meta_bad_data() {
-        let pool = create_connection_pool().await;
-        let router = create_router(pool);
-        let client = TestClient::new(router);
+        let client = get_client().await;
 
         let bad_metadata = json!(
             {
@@ -301,21 +308,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_meta() {
-        let pool = create_connection_pool().await;
-        let router = create_router(pool);
-        let client = TestClient::new(router);
+        let client = get_client().await;
+
+        let identifier = get_random_string(10);
+        let meta = add_meta(&client, &identifier).await;
+
         let response = client.get("/v1/meta/").send().await;
         assert!(response.status().is_success());
         
         let body: MetaRows = response.json().await;
+
+        assert_eq!(body.values.iter().find(|&x| x.identifier == meta.identifier).is_some(), true, "identifier not found in response");
     }
 
     #[tokio::test]
     async fn test_ping() {
         // Setup
-        let pool = create_connection_pool().await;
-        let app = create_router(pool.clone());
-        let client = TestClient::new(app);
+        let client = get_client().await;
     
         // Send a request to the ping endpoint
         let response = client.get("/v1/").send().await;
@@ -324,6 +333,15 @@ mod tests {
         assert!(response.status().is_success());
         let body: PingResponse = response.json().await;
         assert_eq!(body.message, "0xDECAFBAD");
+    }
+
+    #[tokio::test]
+    async fn test_add_timeseries() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier).await;
     }
 
 }
