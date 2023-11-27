@@ -7,17 +7,15 @@ use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
     ResampledTimeseries, Resampling, Result, TimeseriesWithMetadata,
 };
-use axum::extract::{Path, Query, State};
 use axum::extract::Multipart;
+use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
 //use std::io::Cursor;
 //use csv_async::AsyncReaderBuilder;
 
-use crate::{
-    error::ApiError,
-};
+use crate::error::ApiError;
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
@@ -119,7 +117,6 @@ pub async fn add_timeseries(
     State(pool): State<Pool<Postgres>>,
     req: Json<TimeseriesBody<TimeseriesNew>>,
 ) -> Result<Json<TimeseriesBody<TimeseriesWithoutMetadata>>> {
-
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
@@ -127,7 +124,7 @@ pub async fn add_timeseries(
     )
     .fetch_one(&pool)
     .await?;
-    
+
     let timeseries = sqlx::query_as!(
         TimeseriesWithoutMetadata,
         r#"
@@ -141,10 +138,8 @@ pub async fn add_timeseries(
     )
     .fetch_one(&pool)
     .await?;
-    
-    Ok(Json(TimeseriesBody {
-        timeseries,
-    }))
+
+    Ok(Json(TimeseriesBody { timeseries }))
 }
 
 /*
@@ -174,9 +169,7 @@ pub async fn read_meta(
 ) -> Result<Json<MetaRows>, ApiError> {
     let query_offset =
         pagination.0.page.unwrap_or_default() * pagination.0.per_page.unwrap_or_default();
-    let mut meta_query = sqlx::query(
-        "select id, identifier, unit, carrier from meta order by id",
-    );
+    let mut meta_query = sqlx::query("select id, identifier, unit, carrier from meta order by id");
     meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.0.per_page.unwrap_or_default());
     let meta_rows = meta_query.fetch_all(&pool).await?;
@@ -220,13 +213,12 @@ pub async fn add_meta(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::create_router;
     use crate::infrastructure::create_connection_pool;
+    use crate::infrastructure::create_router;
     use axum_test_helper::TestClient;
+    use rand::distributions::{Alphanumeric, DistString};
     use serde_json::json;
     use time::OffsetDateTime;
-    use rand::distributions::{Alphanumeric, DistString};
-
 
     fn get_random_string(size: usize) -> String {
         return Alphanumeric.sample_string(&mut rand::thread_rng(), size);
@@ -235,7 +227,7 @@ mod tests {
     async fn get_client() -> TestClient {
         let pool = create_connection_pool().await;
         let router = create_router(pool);
-        
+
         return TestClient::new(router);
     }
 
@@ -253,7 +245,10 @@ mod tests {
         return r;
     }
 
-    async fn add_timeseries(client: &TestClient, identifier: &str) -> TimeseriesBody<TimeseriesWithoutMetadata> {
+    async fn add_timeseries(
+        client: &TestClient,
+        identifier: &str,
+    ) -> TimeseriesBody<TimeseriesWithoutMetadata> {
         let timeseries = TimeseriesNew {
             series_timestamp: OffsetDateTime::now_utc(),
             series_value: 42.0,
@@ -277,7 +272,7 @@ mod tests {
         let identifier = get_random_string(10);
         add_meta(&client, &identifier).await;
 
-        let rfc_3339_format = &time::format_description::well_known::Rfc3339; 
+        let rfc_3339_format = &time::format_description::well_known::Rfc3339;
         let timeseries = json!({
             "series_timestamp": OffsetDateTime::now_utc().format(rfc_3339_format).unwrap(),
             "series_value": 42,
@@ -315,20 +310,27 @@ mod tests {
 
         let response = client.get("/v1/meta/").send().await;
         assert!(response.status().is_success());
-        
+
         let body: MetaRows = response.json().await;
 
-        assert_eq!(body.values.iter().find(|&x| x.identifier == meta.identifier).is_some(), true, "identifier not found in response");
+        assert_eq!(
+            body.values
+                .iter()
+                .find(|&x| x.identifier == meta.identifier)
+                .is_some(),
+            true,
+            "identifier not found in response"
+        );
     }
 
     #[tokio::test]
     async fn test_ping() {
         // Setup
         let client = get_client().await;
-    
+
         // Send a request to the ping endpoint
         let response = client.get("/v1/").send().await;
-    
+
         // Verify the response
         assert!(response.status().is_success());
         let body: PingResponse = response.json().await;
@@ -343,6 +345,4 @@ mod tests {
         add_meta(&client, &identifier).await;
         add_timeseries(&client, &identifier).await;
     }
-
 }
-
