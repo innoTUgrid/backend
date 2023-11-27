@@ -69,10 +69,10 @@ pub struct Datapoint {
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Serialize, Deserialize)]
 /// TimescaleDB's `time_bucket` function returns a nullable column
 pub struct ResampledDatapoint {
-    pub timestamp: Option<OffsetDateTime>,
+    pub bucket: Option<OffsetDateTime>,
     pub mean_value: Option<f64>,
 }
 
@@ -82,6 +82,7 @@ pub struct Timeseries {
     pub meta: TimeseriesMeta,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ResampledTimeseries {
     pub datapoints: Vec<ResampledDatapoint>,
     pub meta: TimeseriesMeta,
@@ -110,13 +111,6 @@ pub struct TimeseriesWithMetadata {
     pub consumption: Option<bool>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct CreateMetadata {
-    name: String,
-    unit: String,
-    carrier: Option<String>,
-    consumption: Option<bool>,
-}
 #[derive(Deserialize, Serialize)]
 pub struct TimeseriesNew {
     #[serde(with = "time::serde::rfc3339")]
@@ -184,7 +178,7 @@ impl Default for Pagination {
     fn default() -> Self {
         Self {
             page: Some(0),
-            per_page: Some(1000)
+            per_page: Some(1000),
         }
     }
 }

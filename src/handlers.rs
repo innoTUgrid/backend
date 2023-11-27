@@ -1,3 +1,4 @@
+use crate::error::ApiError;
 use crate::models::Timeseries;
 use crate::models::TimeseriesBody;
 use crate::models::TimeseriesMeta;
@@ -12,7 +13,6 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
-use crate::error::ApiError;
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
@@ -33,12 +33,12 @@ pub async fn resample_timeseries_by_identifier(
         ResampledDatapoint,
         r#"
         select
-            time_bucket($2::interval, ts.series_timestamp) as timestamp,
+            time_bucket($2::interval, ts.series_timestamp) as bucket,
             avg(ts.series_value) as mean_value 
         from ts
         where ts.meta_id = $1
-        group by $1, series_timestamp
-        order by series_timestamp
+        group by bucket
+        order by bucket
         "#,
         metadata.id,
         pg_resampling_interval
@@ -143,12 +143,12 @@ pub async fn add_timeseries(
 upload a file from a form and bulk insert it into the database
 */
 pub async fn upload_timeseries(
-    State(pool): State<Pool<Postgres>>,
+    State(_pool): State<Pool<Postgres>>,
     mut multipart: Multipart,
 ) -> Result<Json<String>, ApiError> {
     // iterate over the fields of the form data
     while let Some(field) = multipart.next_field().await? {
-        let field_name = field.name().unwrap_or_else(|| "Unnamed field").to_string();
+        let field_name = field.name().unwrap_or("Unnamed field").to_string();
         println!("field_name: `{}`", field_name);
         if let Some(file_name) = field.file_name() {
             if file_name.ends_with(".csv") {
@@ -219,14 +219,14 @@ mod tests {
     use time::OffsetDateTime;
 
     fn get_random_string(size: usize) -> String {
-        return Alphanumeric.sample_string(&mut rand::thread_rng(), size);
+        Alphanumeric.sample_string(&mut rand::thread_rng(), size)
     }
 
     async fn get_client() -> TestClient {
         let pool = create_connection_pool().await;
         let router = create_router(pool);
 
-        return TestClient::new(router);
+        TestClient::new(router)
     }
 
     async fn add_meta(client: &TestClient, identifier: &str) -> MetaOutput {
@@ -240,16 +240,17 @@ mod tests {
 
         let r: MetaOutput = res.json().await;
         assert_eq!(r.identifier, identifier);
-        return r;
+        r
     }
 
     async fn add_timeseries(
         client: &TestClient,
         identifier: &str,
+        value: f64,
     ) -> TimeseriesBody<TimeseriesWithoutMetadata> {
         let timeseries = TimeseriesNew {
             series_timestamp: OffsetDateTime::now_utc(),
-            series_value: 42.0,
+            series_value: value,
             identifier: identifier.to_string(),
         };
         let res = client
@@ -260,8 +261,8 @@ mod tests {
         assert!(res.status().is_success());
 
         let r: TimeseriesBody<TimeseriesWithoutMetadata> = res.json().await;
-        assert_eq!(r.timeseries.series_value, 42.0);
-        return r;
+        assert_eq!(r.timeseries.series_value, value);
+        r
     }
 
     #[tokio::test]
@@ -311,12 +312,8 @@ mod tests {
 
         let body: MetaRows = response.json().await;
 
-        assert_eq!(
-            body.values
-                .iter()
-                .find(|&x| x.identifier == meta.identifier)
-                .is_some(),
-            true,
+        assert!(
+            body.values.iter().any(|x| x.identifier == meta.identifier),
             "identifier not found in response"
         );
     }
@@ -341,6 +338,41 @@ mod tests {
         let identifier = get_random_string(10);
 
         add_meta(&client, &identifier).await;
-        add_timeseries(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_timeseries_by_identifier() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+
+        let response = client.get(&format!("/v1/ts/{}/", identifier)).send().await;
+        assert!(response.status().is_success());
+
+        let body: Timeseries = response.json().await;
+        assert_eq!(body.meta.identifier, identifier);
+        assert_eq!(body.datapoints.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_resample_timeseries_by_identifier() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        add_timeseries(&client, &identifier, 66.0).await;
+
+        let response = client
+            .get(&format!("/v1/ts/{}/resample?interval=1hour", identifier))
+            .send()
+            .await;
+        assert!(response.status().is_success());
+
+        let body: ResampledTimeseries = response.json().await;
+        assert_eq!(body.datapoints.first().unwrap().mean_value.unwrap(), 54.0);
     }
 }

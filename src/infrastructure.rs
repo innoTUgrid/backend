@@ -1,12 +1,15 @@
-use crate::handlers::{add_meta, add_timeseries, get_timeseries_by_identifier, ping, read_meta};
+use crate::handlers::{
+    add_meta, add_timeseries, get_timeseries_by_identifier, ping, read_meta,
+    resample_timeseries_by_identifier, upload_timeseries,
+};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
 use axum::{routing::get, Router};
 use dotenv::dotenv;
-use sqlx::{ConnectOptions, Pool};
 use sqlx::Postgres;
-use tracing::log::LevelFilter;
+use sqlx::{ConnectOptions, Pool};
 use std::str::FromStr;
+use tracing::log::LevelFilter;
 
 pub async fn create_connection_pool() -> Pool<Postgres> {
     dotenv().ok();
@@ -21,13 +24,17 @@ pub async fn create_connection_pool() -> Pool<Postgres> {
 }
 
 pub fn create_router(pool: Pool<Postgres>) -> Router {
-
     Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
+        .route("/v1/ts/upload", post(upload_timeseries))
+        .route(
+            "/v1/ts/:identifier/resample",
+            get(resample_timeseries_by_identifier),
+        )
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
         // limit file size to 10MB
         .layer(DefaultBodyLimit::max(1024 * 1024 * 10))

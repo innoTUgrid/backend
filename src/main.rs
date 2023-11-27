@@ -1,5 +1,5 @@
-use tracing::Level;
 use crate::infrastructure::{create_connection_pool, create_router};
+use tracing::Level;
 use tracing_subscriber::fmt;
 
 mod error;
@@ -9,7 +9,9 @@ mod models;
 
 #[tokio::main]
 async fn main() {
-    fmt::Subscriber::builder().with_max_level(Level::TRACE).init();
+    fmt::Subscriber::builder()
+        .with_max_level(Level::TRACE)
+        .init();
 
     let _pool = create_connection_pool().await;
     let app = create_router(_pool);
