@@ -3,27 +3,25 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
 use axum::{routing::get, Router};
 use dotenv::dotenv;
-use sqlx::Pool;
+use sqlx::{ConnectOptions, Pool};
 use sqlx::Postgres;
-
-/*
-// should run migrations but fails to do so
-pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
-    sqlx::migrate!("./migrations").run(pool).await
-}*/
+use tracing::log::LevelFilter;
+use std::str::FromStr;
 
 pub async fn create_connection_pool() -> Pool<Postgres> {
     dotenv().ok();
-
     let database_url =
         std::env::var("DATABASE_URL").expect("Couldn't find database url in .env file");
-
-    Pool::<Postgres>::connect(&database_url)
+    let postgres_connect_options = sqlx::postgres::PgConnectOptions::from_str(&database_url)
+        .expect("Failed to parse database url")
+        .log_statements(LevelFilter::Debug);
+    Pool::<Postgres>::connect_with(postgres_connect_options)
         .await
         .expect("Failed to create database connection pool")
 }
 
 pub fn create_router(pool: Pool<Postgres>) -> Router {
+
     Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))

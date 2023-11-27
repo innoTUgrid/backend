@@ -1,4 +1,6 @@
+use tracing::Level;
 use crate::infrastructure::{create_connection_pool, create_router};
+use tracing_subscriber::fmt;
 
 mod error;
 mod handlers;
@@ -7,10 +9,9 @@ mod models;
 
 #[tokio::main]
 async fn main() {
+    fmt::Subscriber::builder().with_max_level(Level::TRACE).init();
+
     let _pool = create_connection_pool().await;
-
-    //run_migrations(&_pool).await.expect("Failed to run migrations");
-
     let app = create_router(_pool);
 
     // run it with hyper on localhost:3000
