@@ -26,10 +26,10 @@ jobs:
           components: rustfmt, clippy
       - name: Format
         run: cargo fmt -- --check
+      - name: Initialize Database
+        run: ./scripts/init_db.sh
       - name: Lint
         run: cargo clippy -- -D warnings
-      - name: Init db
-        run: ./scripts/init_db.sh
       - name: Test
         run: cargo test
         env:
