@@ -12,9 +12,6 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
-//use std::io::Cursor;
-//use csv_async::AsyncReaderBuilder;
-
 use crate::error::ApiError;
 
 /// timeseries values for specific metadata and a given interval
@@ -167,9 +164,10 @@ pub async fn read_meta(
     State(pool): State<Pool<Postgres>>,
     pagination: Query<Pagination>,
 ) -> Result<Json<MetaRows>, ApiError> {
-    let query_offset =
-        pagination.0.page.unwrap_or_default() * pagination.0.per_page.unwrap_or_default();
-    let mut meta_query = sqlx::query("select id, identifier, unit, carrier from meta order by id");
+    let query_offset = pagination.get_offset();
+    let mut meta_query = sqlx::query(
+        "select id, identifier, unit, carrier from meta order by id offset $1 limit $2",
+    );
     meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.0.per_page.unwrap_or_default());
     let meta_rows = meta_query.fetch_all(&pool).await?;

@@ -183,9 +183,22 @@ pub struct Pagination {
 impl Default for Pagination {
     fn default() -> Self {
         Self {
-            page: Option::from(0),
-            per_page: Option::from(1000),
+            page: Some(0),
+            per_page: Some(1000)
         }
+    }
+}
+impl Pagination {
+    pub fn get_page_or_default(&self) -> i32 {
+        self.page.unwrap_or(0)
+    }
+
+    pub fn get_per_page_or_default(&self) -> i32 {
+        self.per_page.unwrap_or(1000)
+    }
+
+    pub fn get_offset(&self) -> i32 {
+        self.get_page_or_default() * self.get_per_page_or_default()
     }
 }
 /// `Resampling` is a struct that represents the resampling configuration which is passed as a query parameter
