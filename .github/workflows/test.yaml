@@ -27,7 +27,7 @@ jobs:
       - name: Format
         run: cargo fmt -- --check
       - name: Initialize Database
-        run: ./scripts/init_db.sh
+        run: ./scripts/init-db.sh
       - name: Lint
         run: cargo clippy -- -D warnings
       - name: Test
