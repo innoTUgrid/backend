@@ -1,3 +1,4 @@
+use crate::error::ApiError;
 use anyhow::anyhow;
 use regex::Regex;
 use serde::de::Visitor;
@@ -6,7 +7,6 @@ use sqlx::postgres::types::PgInterval;
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
-use crate::error::ApiError;
 
 /// wrap postgres timestamptz to achieve human-readable serialization
 #[derive(sqlx::Type)]
@@ -240,9 +240,15 @@ impl Resampling {
 
 #[derive(Debug, Deserialize)]
 pub struct TimestampFilter {
-    #[serde(with = "time::serde::rfc3339::option", default = "TimestampFilter::default_from")]
+    #[serde(
+        with = "time::serde::rfc3339::option",
+        default = "TimestampFilter::default_from"
+    )]
     pub from: Option<OffsetDateTime>,
-    #[serde(with = "time::serde::rfc3339::option", default = "TimestampFilter::default_to")]
+    #[serde(
+        with = "time::serde::rfc3339::option",
+        default = "TimestampFilter::default_to"
+    )]
     pub to: Option<OffsetDateTime>,
 }
 

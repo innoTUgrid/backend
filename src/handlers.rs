@@ -1,5 +1,4 @@
 use crate::error::ApiError;
-use crate::models::{Timeseries, TimestampFilter};
 use crate::models::TimeseriesBody;
 use crate::models::TimeseriesMeta;
 use crate::models::TimeseriesNew;
@@ -8,6 +7,7 @@ use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
     ResampledTimeseries, Resampling, Result,
 };
+use crate::models::{Timeseries, TimestampFilter};
 use axum::extract::Multipart;
 use axum::extract::{Path, Query, State};
 use axum::Json;
@@ -57,7 +57,7 @@ pub async fn resample_timeseries_by_identifier(
 pub async fn get_timeseries_by_identifier(
     State(pool): State<Pool<Postgres>>,
     Path(identifier): Path<String>,
-    Query(timestamp_filter): Query<TimestampFilter>
+    Query(timestamp_filter): Query<TimestampFilter>,
 ) -> Result<Json<Timeseries>> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -69,8 +69,8 @@ pub async fn get_timeseries_by_identifier(
         r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
         identifier,
     )
-        .fetch_one(&pool)
-        .await?;
+    .fetch_one(&pool)
+    .await?;
     let rows = sqlx::query_as!(
         Datapoint,
         r#"
@@ -205,7 +205,7 @@ mod tests {
     use axum_test_helper::TestClient;
     use rand::distributions::{Alphanumeric, DistString};
     use serde_json::json;
-    use time::{OffsetDateTime};
+    use time::OffsetDateTime;
 
     fn get_random_string(size: usize) -> String {
         Alphanumeric.sample_string(&mut rand::thread_rng(), size)
@@ -354,9 +354,12 @@ mod tests {
         add_meta(&client, &identifier).await;
         add_timeseries(&client, &identifier, 42.0).await;
 
-        let response = client.get(&format!("/v1/ts/{}/?from=2022-11-29T09:31:51Z", identifier)).send().await;
+        let response = client
+            .get(&format!("/v1/ts/{}/?from=2022-11-29T09:31:51Z", identifier))
+            .send()
+            .await;
         assert!(response.status().is_success());
-        let body: Timeseries  = response.json().await;
+        let body: Timeseries = response.json().await;
         assert_eq!(body.meta.identifier, identifier);
         assert_eq!(body.datapoints.len(), 1);
     }
@@ -369,9 +372,12 @@ mod tests {
         add_meta(&client, &identifier).await;
         add_timeseries(&client, &identifier, 42.0).await;
 
-        let response = client.get(&format!("/v1/ts/{}/?to=2022-11-29T09:31:51Z", identifier)).send().await;
+        let response = client
+            .get(&format!("/v1/ts/{}/?to=2022-11-29T09:31:51Z", identifier))
+            .send()
+            .await;
         assert!(response.status().is_success());
-        let body: Timeseries  = response.json().await;
+        let body: Timeseries = response.json().await;
         assert_eq!(body.meta.identifier, identifier);
         assert_eq!(body.datapoints.len(), 0);
     }
@@ -383,7 +389,13 @@ mod tests {
 
         add_meta(&client, &identifier).await;
         add_timeseries(&client, &identifier, 42.0).await;
-        let response = client.get(&format!("/v1/ts/{}/?from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z", identifier)).send().await;
+        let response = client
+            .get(&format!(
+                "/v1/ts/{}/?from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z",
+                identifier
+            ))
+            .send()
+            .await;
         assert!(response.status().is_success());
         let body: Timeseries = response.json().await;
         assert_eq!(body.meta.identifier, identifier);

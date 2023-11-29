@@ -9,9 +9,7 @@ mod models;
 #[tokio::main]
 async fn main() {
     let log_level = read_log_level();
-    fmt::Subscriber::builder()
-        .with_max_level(log_level)
-        .init();
+    fmt::Subscriber::builder().with_max_level(log_level).init();
 
     let _pool = create_connection_pool().await;
     let app = create_router(_pool);
