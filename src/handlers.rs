@@ -1,12 +1,12 @@
 use crate::error::ApiError;
-use crate::models::Timeseries;
+use crate::models::{Timeseries, TimestampFilter};
 use crate::models::TimeseriesBody;
 use crate::models::TimeseriesMeta;
 use crate::models::TimeseriesNew;
 use crate::models::TimeseriesWithoutMetadata;
 use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
-    ResampledTimeseries, Resampling, Result, TimeseriesWithMetadata,
+    ResampledTimeseries, Resampling, Result,
 };
 use axum::extract::Multipart;
 use axum::extract::{Path, Query, State};
@@ -57,55 +57,44 @@ pub async fn resample_timeseries_by_identifier(
 pub async fn get_timeseries_by_identifier(
     State(pool): State<Pool<Postgres>>,
     Path(identifier): Path<String>,
+    Query(timestamp_filter): Query<TimestampFilter>
 ) -> Result<Json<Timeseries>> {
-    let mut rows = sqlx::query_as!(
-        TimeseriesWithMetadata,
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+    // we do the join in the backend here
+    // this hits the database twice, but we avoid a branch and can simplify the code
+    // additionally we can always return matching metadata even if query param filters lead to empty result set
+    let metadata = sqlx::query_as!(
+        TimeseriesMeta,
+        r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
+        identifier,
+    )
+        .fetch_one(&pool)
+        .await?;
+    let rows = sqlx::query_as!(
+        Datapoint,
         r#"
         select
-            meta.id meta_id,
-            meta.identifier identifier,
-            meta.unit unit,
-            meta.carrier carrier,
-            meta.consumption consumption,
-            ts.id series_id,
-            ts.series_timestamp,
-            ts.series_value,
+            ts.id,
+            ts.series_timestamp as "timestamp",
+            ts.series_value as "value",
             ts.created_at created_at,
             ts.updated_at updated_at
-        from ts, meta
-        where ts.meta_id = meta.id
-        and meta.identifier = $1
-        order by ts.series_timestamp
+        from ts
+        where ts.meta_id = $1
+        and ts.series_timestamp >= $2
+        and ts.series_timestamp <= $3
         "#,
-        identifier
+        metadata.id,
+        from_timestamp,
+        to_timestamp,
     )
     .fetch_all(&pool)
     .await?;
-
-    let datapoints = rows
-        .iter()
-        .map(|row| Datapoint {
-            id: row.series_id,
-            timestamp: row.series_timestamp,
-            value: row.series_value,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        })
-        .collect();
-    let first_row = rows.remove(0);
-    let metadata = TimeseriesMeta {
-        id: first_row.meta_id,
-        identifier: first_row.identifier,
-        unit: first_row.unit,
-        carrier: first_row.carrier,
-        consumption: first_row.consumption,
-    };
-
     let response = Timeseries {
-        datapoints,
+        datapoints: rows,
         meta: metadata,
     };
-
     Ok(Json(response))
 }
 
@@ -216,7 +205,7 @@ mod tests {
     use axum_test_helper::TestClient;
     use rand::distributions::{Alphanumeric, DistString};
     use serde_json::json;
-    use time::OffsetDateTime;
+    use time::{OffsetDateTime};
 
     fn get_random_string(size: usize) -> String {
         Alphanumeric.sample_string(&mut rand::thread_rng(), size)
@@ -355,6 +344,50 @@ mod tests {
         let body: Timeseries = response.json().await;
         assert_eq!(body.meta.identifier, identifier);
         assert_eq!(body.datapoints.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_timeseries_by_identifier_from_filter() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+
+        let response = client.get(&format!("/v1/ts/{}/?from=2022-11-29T09:31:51Z", identifier)).send().await;
+        assert!(response.status().is_success());
+        let body: Timeseries  = response.json().await;
+        assert_eq!(body.meta.identifier, identifier);
+        assert_eq!(body.datapoints.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_timeseries_by_identifier_to_filter() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+
+        let response = client.get(&format!("/v1/ts/{}/?to=2022-11-29T09:31:51Z", identifier)).send().await;
+        assert!(response.status().is_success());
+        let body: Timeseries  = response.json().await;
+        assert_eq!(body.meta.identifier, identifier);
+        assert_eq!(body.datapoints.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_timeseries_by_identifier_with_ts_filter() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        let response = client.get(&format!("/v1/ts/{}/?from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z", identifier)).send().await;
+        assert!(response.status().is_success());
+        let body: Timeseries = response.json().await;
+        assert_eq!(body.meta.identifier, identifier);
+        assert_eq!(body.datapoints.len(), 0);
     }
 
     #[tokio::test]

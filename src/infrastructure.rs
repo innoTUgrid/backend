@@ -33,11 +33,11 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
         .route("/v1/ts/upload", post(upload_timeseries))
+        .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
         .route(
             "/v1/ts/:identifier/resample",
             get(resample_timeseries_by_identifier),
         )
-        .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
         // limit file size to 10MB
         .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
         .with_state(pool)

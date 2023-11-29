@@ -1,5 +1,4 @@
-use crate::infrastructure::{create_connection_pool, create_router};
-use tracing::Level;
+use crate::infrastructure::{create_connection_pool, create_router, read_log_level};
 use tracing_subscriber::fmt;
 
 mod error;

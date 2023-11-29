@@ -6,7 +6,6 @@ use sqlx::postgres::types::PgInterval;
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
-
 use crate::error::ApiError;
 
 /// wrap postgres timestamptz to achieve human-readable serialization
@@ -60,7 +59,7 @@ pub struct TimeseriesMeta {
     pub consumption: Option<bool>,
 }
 
-#[derive(sqlx::FromRow, Serialize, Deserialize)]
+#[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
 pub struct Datapoint {
     pub id: i64,
     pub timestamp: OffsetDateTime,
@@ -69,26 +68,26 @@ pub struct Datapoint {
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(sqlx::FromRow, Serialize, Deserialize)]
+#[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
 /// TimescaleDB's `time_bucket` function returns a nullable column
 pub struct ResampledDatapoint {
     pub bucket: Option<OffsetDateTime>,
     pub mean_value: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Timeseries {
     pub datapoints: Vec<Datapoint>,
     pub meta: TimeseriesMeta,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ResampledTimeseries {
     pub datapoints: Vec<ResampledDatapoint>,
     pub meta: TimeseriesMeta,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TimeseriesWithoutMetadata {
     pub id: i64,
     pub series_timestamp: OffsetDateTime,
@@ -98,6 +97,7 @@ pub struct TimeseriesWithoutMetadata {
 }
 
 /// Intermediate representation for timeseries data from the database
+#[derive(Debug)]
 pub struct TimeseriesWithMetadata {
     pub series_id: i64,
     pub series_timestamp: OffsetDateTime,
@@ -111,7 +111,7 @@ pub struct TimeseriesWithMetadata {
     pub consumption: Option<bool>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TimeseriesNew {
     #[serde(with = "time::serde::rfc3339")]
     pub series_timestamp: OffsetDateTime,
@@ -119,7 +119,7 @@ pub struct TimeseriesNew {
     pub identifier: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TimeseriesBody<T = Timeseries> {
     pub timeseries: T,
 }
@@ -237,6 +237,34 @@ impl Resampling {
         Ok(encoded)
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct TimestampFilter {
+    #[serde(with = "time::serde::rfc3339::option", default = "TimestampFilter::default_from")]
+    pub from: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option", default = "TimestampFilter::default_to")]
+    pub to: Option<OffsetDateTime>,
+}
+
+impl TimestampFilter {
+    fn default_from() -> Option<OffsetDateTime> {
+        Some(OffsetDateTime::UNIX_EPOCH)
+    }
+
+    fn default_to() -> Option<OffsetDateTime> {
+        Some(OffsetDateTime::now_utc())
+    }
+}
+
+impl Default for TimestampFilter {
+    fn default() -> Self {
+        Self {
+            from: Self::default_from(),
+            to: Some(OffsetDateTime::now_utc()),
+        }
+    }
+}
+
 #[test]
 fn test_map_interval() {
     let resample = Resampling {
