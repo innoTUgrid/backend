@@ -19,6 +19,7 @@ pub async fn resample_timeseries_by_identifier(
     State(pool): State<Pool<Postgres>>,
     Path(identifier): Path<String>,
     Query(resampling): Query<Resampling>,
+    Query(timestamp_filter): Query<TimestampFilter>,
 ) -> Result<Json<ResampledTimeseries>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let metadata = sqlx::query_as!(
@@ -29,6 +30,9 @@ pub async fn resample_timeseries_by_identifier(
     .fetch_one(&pool)
     .await?;
 
+    let timestamp_from = timestamp_filter.from.unwrap();
+    let timestamp_to = timestamp_filter.to.unwrap();
+
     let datapoints = sqlx::query_as!(
         ResampledDatapoint,
         r#"
@@ -37,11 +41,15 @@ pub async fn resample_timeseries_by_identifier(
             avg(ts.series_value) as mean_value 
         from ts
         where ts.meta_id = $1
+        and ts.series_timestamp >= $3
+        and ts.series_timestamp <= $4
         group by bucket
         order by bucket
         "#,
         metadata.id,
-        pg_resampling_interval
+        pg_resampling_interval,
+        timestamp_from,
+        timestamp_to
     )
     .fetch_all(&pool)
     .await?;
@@ -419,5 +427,83 @@ mod tests {
 
         let body: ResampledTimeseries = response.json().await;
         assert_eq!(body.datapoints.first().unwrap().mean_value.unwrap(), 54.0);
+    }
+    #[tokio::test]
+    async fn test_resample_timeseries_by_identifier_with_ts_filter_from() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        add_timeseries(&client, &identifier, 66.0).await;
+
+        let response = client
+            .get(&format!(
+                "/v1/ts/{}/resample?interval=1hour&from=2022-11-29T09:31:51Z",
+                identifier
+            ))
+            .send()
+            .await;
+        assert!(response.status().is_success());
+
+        let body: ResampledTimeseries = response.json().await;
+        assert_eq!(body.datapoints.first().unwrap().mean_value.unwrap(), 54.0);
+    }
+    #[tokio::test]
+    async fn test_resample_timeseries_by_identifier_with_ts_filter_to() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        add_timeseries(&client, &identifier, 66.0).await;
+
+        let response = client
+            .get(&format!(
+                "/v1/ts/{}/resample?interval=1hour&to=2022-11-29T09:31:51Z",
+                identifier
+            ))
+            .send()
+            .await;
+        assert!(response.status().is_success());
+
+        let body: ResampledTimeseries = response.json().await;
+        assert_eq!(body.datapoints.len(), 0)
+    }
+    #[tokio::test]
+    async fn test_resample_timeseries_by_identifier_with_ts_filter() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        add_timeseries(&client, &identifier, 66.0).await;
+
+        let response = client
+            .get(&format!("/v1/ts/{}/resample?interval=1hour&from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z", identifier))
+            .send()
+            .await;
+        assert!(response.status().is_success());
+
+        let body: ResampledTimeseries = response.json().await;
+        assert_eq!(body.datapoints.len(), 0)
+    }
+    #[tokio::test]
+    async fn test_resample_timeseries_by_identifier_bad_ts_filter() {
+        let client = get_client().await;
+        let identifier = get_random_string(10);
+
+        add_meta(&client, &identifier).await;
+        add_timeseries(&client, &identifier, 42.0).await;
+        add_timeseries(&client, &identifier, 66.0).await;
+
+        let response = client
+            .get(&format!(
+                "/v1/ts/{}/resample?interval=1hour&from=23542365346747&to=2022-12-01T00:00:00Z",
+                identifier
+            ))
+            .send()
+            .await;
+        assert!(response.status().is_client_error());
     }
 }
