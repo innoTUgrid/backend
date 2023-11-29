@@ -1,0 +1,1 @@
+alter table if exists meta drop column if exists microgrid_id;
