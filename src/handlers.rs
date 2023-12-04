@@ -20,10 +20,6 @@ use time::format_description::well_known::Rfc3339;
 //use csv_async::{AsyncReaderBuilder, AsyncReader, AsyncDeserializer, ByteRecord, StringRecord};
 use serde::Deserialize;
 
-use crate::{
-    error::ApiError,
-};
-
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
     State(pool): State<Pool<Postgres>>,
