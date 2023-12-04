@@ -4,17 +4,48 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use sqlx::error::DatabaseError;
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
+use csv_async::Error;
+use time::error::Parse;
+use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
     #[error(transparent)]
     JsonExtractorRejection(#[from] JsonRejection),
-    //#[error("multipart error: {0}")]
-    #[error(transparent)]
-    MultipartRejectionError(#[from] MultipartError),
     // implement for trait `From<sqlx::Error>`
     #[error(transparent)]
     DatabaseError(#[from] sqlx::Error),
+
+    //#[error("multipart error: {0}")]
+    #[error(transparent)]
+    MultipartRejectionError(#[from] MultipartError),
+    
+    //
+    #[error(transparent)]
+    Utf8Error(#[from] Utf8Error),
+
+    //From<FromUtf8Error>
+    #[error(transparent)]
+    FromUtf8Error(#[from] FromUtf8Error),
+
+    //From<csv_async::Error>
+    #[error(transparent)]
+    CsvAsyncError(#[from] csv_async::Error),
+
+    #[error(transparent)]
+    TimeParseError(#[from] time::error::Parse),
+
+    //ParseFloatError
+    #[error(transparent)]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+    
+    #[error("request path not found")]
+    NotFound,
     #[error("an internal server error occurred")]
     Anyhow(#[from] anyhow::Error),
 }
@@ -27,6 +58,12 @@ impl ApiError {
             Self::JsonExtractorRejection(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::MultipartRejectionError(_) => StatusCode::BAD_REQUEST,
             Self::DatabaseError(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Utf8Error(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::FromUtf8Error(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::CsvAsyncError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::TimeParseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ParseFloatError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ParseIntError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

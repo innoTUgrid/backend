@@ -14,6 +14,16 @@ use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
 
+use std::string::String;
+use time::{Duration, OffsetDateTime};
+use time::format_description::well_known::Rfc3339;
+//use csv_async::{AsyncReaderBuilder, AsyncReader, AsyncDeserializer, ByteRecord, StringRecord};
+use serde::Deserialize;
+
+use crate::{
+    error::ApiError,
+};
+
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
     State(pool): State<Pool<Postgres>>,
@@ -138,23 +148,72 @@ pub async fn add_timeseries(
 
 /*
 upload a file from a form and bulk insert it into the database
+docs: https://docs.rs/axum/latest/axum/extract/multipart/struct.Field.html
+test: curl -F upload=@/home/ole/poetry/jupyter_lab/jupyter_lab/DSP/dataset/inno2grid_backend_test.csv 127.0.0.1:3000/v1/ts/upload
 */
 pub async fn upload_timeseries(
     State(_pool): State<Pool<Postgres>>,
     mut multipart: Multipart,
 ) -> Result<Json<String>, ApiError> {
+
+    let mut data_string = String::new();
+
     // iterate over the fields of the form data
     while let Some(field) = multipart.next_field().await? {
         let field_name = field.name().unwrap_or("Unnamed field").to_string();
         println!("field_name: `{}`", field_name);
         if let Some(file_name) = field.file_name() {
+            println!("file_name: `{}`", file_name);
             if file_name.ends_with(".csv") {
-                let data = field.bytes().await?;
-                println!("Length of `{}` is {} bytes", field_name, data.len());
+                
+                // convert to: <std::string::String>
+                data_string = field.text().await?;
+                println!("data_string: {:?}", data_string);
+
+                let rows: Vec<Vec<String>> = data_string
+                .lines() // Split into lines
+                .map(|line| line.split(',') // Split each line by comma
+                    .map(|s| s.to_string()) // Convert each &str to String
+                    .collect()) // Collect into a Vec<String>
+                .collect(); // Collect all the Vec<String> into a Vec<Vec<String>>
+                println!("rows: {:?}", rows);
+
+                println!("headers: {:?}", rows[0]);
+                
+                /*
+                for row in rows.iter().skip(1) {
+                    println!("row: {:?}", row);
+                    let query = sqlx::query!(
+                        "INSERT INTO ts (series_timestamp, series_value, meta_id)
+                        VALUES ($1, $2, $3)",
+                        OffsetDateTime::parse(&row[0], &Rfc3339)?, 
+                        row[1].parse::<f64>()?, 
+                        row[2].parse::<i32>()?
+                    );
+                    query.execute(&pool).await?;
+                }*/
+                /*
+                for row in rows.iter().skip(1) {
+                    sqlx::query_as!(
+                        TimeseriesWithoutMetadata,
+                        r#"
+                        insert into ts (series_timestamp, series_value, meta_id)
+                        values ($1, $2, $3)
+                        returning id, series_timestamp, series_value, created_at, updated_at
+                        "#,
+                        OffsetDateTime::parse(&row[0], &Rfc3339)?, 
+                        row[1].parse::<f64>()?, 
+                        row[2].parse::<i32>()?
+                    )
+                    .fetch_one(&pool)
+                    .await?;
+                }*/
             }
         }
     }
-    Ok(Json("File uploaded successfully".to_string()))
+
+    //Ok(Json("File uploaded successfully".to_string()))
+    Ok(Json(data_string))
 }
 
 pub async fn read_meta(
