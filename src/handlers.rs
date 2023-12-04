@@ -1,8 +1,6 @@
 use crate::error::ApiError;
-use crate::models::TimeseriesBody;
+use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::TimeseriesMeta;
-use crate::models::TimeseriesNew;
-use crate::models::TimeseriesWithoutMetadata;
 use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
     ResampledTimeseries, Resampling, Result,
@@ -112,11 +110,13 @@ pub async fn get_timeseries_by_identifier(
     Ok(Json(response))
 }
 
+
+/// fetch all timseries matching a comma-seperated list of identifiers
 /**/
 pub async fn add_timeseries(
     State(pool): State<Pool<Postgres>>,
-    req: Json<TimeseriesBody<TimeseriesNew>>,
-) -> Result<Json<TimeseriesBody<TimeseriesWithoutMetadata>>> {
+    req: Json<TimeseriesBody<NewDatapoint>>,
+) -> Result<Json<TimeseriesBody<Datapoint>>> {
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
@@ -126,14 +126,14 @@ pub async fn add_timeseries(
     .await?;
 
     let timeseries = sqlx::query_as!(
-        TimeseriesWithoutMetadata,
+        Datapoint,
         r#"
         insert into ts (series_timestamp, series_value, meta_id)
         values ($1, $2, $3)
-        returning id, series_timestamp, series_value, created_at, updated_at
+        returning id, series_timestamp as timestamp, series_value as value, created_at, updated_at
         "#,
-        req.timeseries.series_timestamp,
-        req.timeseries.series_value,
+        req.timeseries.timestamp,
+        req.timeseries.value,
         metadata.id
     )
     .fetch_one(&pool)
@@ -299,10 +299,10 @@ mod tests {
         client: &TestClient,
         identifier: &str,
         value: f64,
-    ) -> TimeseriesBody<TimeseriesWithoutMetadata> {
-        let timeseries = TimeseriesNew {
-            series_timestamp: OffsetDateTime::now_utc(),
-            series_value: value,
+    ) -> TimeseriesBody<Datapoint> {
+        let timeseries = NewDatapoint {
+            timestamp: OffsetDateTime::now_utc(),
+            value,
             identifier: identifier.to_string(),
         };
         let res = client
@@ -312,8 +312,8 @@ mod tests {
             .await;
         assert!(res.status().is_success());
 
-        let r: TimeseriesBody<TimeseriesWithoutMetadata> = res.json().await;
-        assert_eq!(r.timeseries.series_value, value);
+        let r: TimeseriesBody<Datapoint> = res.json().await;
+        assert_eq!(r.timeseries.value, value);
         r
     }
 
@@ -325,8 +325,8 @@ mod tests {
 
         let rfc_3339_format = &time::format_description::well_known::Rfc3339;
         let timeseries = json!({
-            "series_timestamp": OffsetDateTime::now_utc().format(rfc_3339_format).unwrap(),
-            "series_value": 42,
+            "timestamp": OffsetDateTime::now_utc().format(rfc_3339_format).unwrap(),
+            "value": 42,
             "wrongKey": identifier.to_string(),
         });
         let response = client

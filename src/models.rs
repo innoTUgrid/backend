@@ -87,21 +87,15 @@ pub struct ResampledTimeseries {
     pub meta: TimeseriesMeta,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TimeseriesWithoutMetadata {
-    pub id: i64,
-    pub series_timestamp: OffsetDateTime,
-    pub series_value: f64,
-    pub created_at: OffsetDateTime,
-    pub updated_at: OffsetDateTime,
-}
+/// Intermediate representation for join tables from the database.
+///
+///
 
-/// Intermediate representation for timeseries data from the database
 #[derive(Debug)]
-pub struct TimeseriesWithMetadata {
-    pub series_id: i64,
-    pub series_timestamp: OffsetDateTime,
-    pub series_value: f64,
+pub struct DatapointWithMetadata {
+    pub id: i64,
+    pub timestamp: OffsetDateTime,
+    pub value: f64,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     pub meta_id: i32,
@@ -111,11 +105,16 @@ pub struct TimeseriesWithMetadata {
     pub consumption: Option<bool>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct MultipleDatapointsWithMetadata {
+    pub datapoints: Vec<DatapointWithMetadata>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
-pub struct TimeseriesNew {
+pub struct NewDatapoint {
     #[serde(with = "time::serde::rfc3339")]
-    pub series_timestamp: OffsetDateTime,
-    pub series_value: f64,
+    pub timestamp: OffsetDateTime,
+    pub value: f64,
     pub identifier: String,
 }
 
@@ -269,6 +268,11 @@ impl Default for TimestampFilter {
             to: Some(OffsetDateTime::now_utc()),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IdentifiersQuery {
+    identifiers: Vec<String>
 }
 
 #[test]

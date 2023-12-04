@@ -21,7 +21,7 @@ pub enum ApiError {
     //#[error("multipart error: {0}")]
     #[error(transparent)]
     MultipartRejectionError(#[from] MultipartError),
-    
+
     //
     #[error(transparent)]
     Utf8Error(#[from] Utf8Error),
@@ -40,10 +40,10 @@ pub enum ApiError {
     //ParseFloatError
     #[error(transparent)]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    
+
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
-    
+
     #[error("request path not found")]
     NotFound,
     #[error("an internal server error occurred")]
@@ -68,9 +68,6 @@ impl ApiError {
         }
     }
 }
-
-/*
-*/
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
