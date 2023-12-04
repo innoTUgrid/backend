@@ -91,7 +91,7 @@ pub struct ResampledTimeseries {
 ///
 ///
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct DatapointWithMetadata {
     pub id: i64,
     pub timestamp: OffsetDateTime,
@@ -272,7 +272,7 @@ impl Default for TimestampFilter {
 
 #[derive(Debug, Deserialize)]
 pub struct IdentifiersQuery {
-    identifiers: Vec<String>
+    identifiers: Vec<String>,
 }
 
 #[test]

@@ -1,10 +1,10 @@
 use crate::error::ApiError;
-use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::TimeseriesMeta;
 use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
     ResampledTimeseries, Resampling, Result,
 };
+use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
 use axum::extract::Multipart;
 use axum::extract::{Path, Query, State};
@@ -13,8 +13,8 @@ use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
 
 use std::string::String;
-use time::{Duration, OffsetDateTime};
 use time::format_description::well_known::Rfc3339;
+use time::{Duration, OffsetDateTime};
 //use csv_async::{AsyncReaderBuilder, AsyncReader, AsyncDeserializer, ByteRecord, StringRecord};
 use serde::Deserialize;
 
@@ -110,7 +110,6 @@ pub async fn get_timeseries_by_identifier(
     Ok(Json(response))
 }
 
-
 /// fetch all timseries matching a comma-seperated list of identifiers
 /**/
 pub async fn add_timeseries(
@@ -151,7 +150,6 @@ pub async fn upload_timeseries(
     State(_pool): State<Pool<Postgres>>,
     mut multipart: Multipart,
 ) -> Result<Json<String>, ApiError> {
-
     let mut data_string = String::new();
 
     // iterate over the fields of the form data
@@ -161,29 +159,30 @@ pub async fn upload_timeseries(
         if let Some(file_name) = field.file_name() {
             println!("file_name: `{}`", file_name);
             if file_name.ends_with(".csv") {
-                
                 // convert to: <std::string::String>
                 data_string = field.text().await?;
                 println!("data_string: {:?}", data_string);
 
                 let rows: Vec<Vec<String>> = data_string
-                .lines() // Split into lines
-                .map(|line| line.split(',') // Split each line by comma
-                    .map(|s| s.to_string()) // Convert each &str to String
-                    .collect()) // Collect into a Vec<String>
-                .collect(); // Collect all the Vec<String> into a Vec<Vec<String>>
+                    .lines() // Split into lines
+                    .map(|line| {
+                        line.split(',') // Split each line by comma
+                            .map(|s| s.to_string()) // Convert each &str to String
+                            .collect()
+                    }) // Collect into a Vec<String>
+                    .collect(); // Collect all the Vec<String> into a Vec<Vec<String>>
                 println!("rows: {:?}", rows);
 
                 println!("headers: {:?}", rows[0]);
-                
+
                 /*
                 for row in rows.iter().skip(1) {
                     println!("row: {:?}", row);
                     let query = sqlx::query!(
                         "INSERT INTO ts (series_timestamp, series_value, meta_id)
                         VALUES ($1, $2, $3)",
-                        OffsetDateTime::parse(&row[0], &Rfc3339)?, 
-                        row[1].parse::<f64>()?, 
+                        OffsetDateTime::parse(&row[0], &Rfc3339)?,
+                        row[1].parse::<f64>()?,
                         row[2].parse::<i32>()?
                     );
                     query.execute(&pool).await?;
@@ -197,8 +196,8 @@ pub async fn upload_timeseries(
                         values ($1, $2, $3)
                         returning id, series_timestamp, series_value, created_at, updated_at
                         "#,
-                        OffsetDateTime::parse(&row[0], &Rfc3339)?, 
-                        row[1].parse::<f64>()?, 
+                        OffsetDateTime::parse(&row[0], &Rfc3339)?,
+                        row[1].parse::<f64>()?,
                         row[2].parse::<i32>()?
                     )
                     .fetch_one(&pool)
