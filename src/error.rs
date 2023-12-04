@@ -55,6 +55,7 @@ pub enum ApiError {
 impl ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::NotFound => StatusCode::NOT_FOUND,
             Self::JsonExtractorRejection(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::MultipartRejectionError(_) => StatusCode::BAD_REQUEST,
             Self::DatabaseError(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
