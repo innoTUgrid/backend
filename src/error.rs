@@ -9,7 +9,6 @@ use sqlx::error::DatabaseError;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
-
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
     #[error(transparent)]
@@ -33,6 +32,9 @@ pub enum ApiError {
     //From<csv_async::Error>
     #[error(transparent)]
     CsvAsyncError(#[from] csv_async::Error),
+
+    #[error(transparent)]
+    CsvError(#[from] csv::Error),
 
     #[error(transparent)]
     TimeParseError(#[from] time::error::Parse),
@@ -65,6 +67,8 @@ impl ApiError {
             Self::TimeParseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ParseFloatError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ParseIntError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::CsvError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }
