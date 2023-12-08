@@ -118,7 +118,9 @@ pub async fn add_timeseries(
 ) -> Result<Json<TimeseriesBody<Datapoint>>> {
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
-        r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
+        r#"
+        select id, identifier, unit, carrier, consumption
+        from meta where meta.identifier = $1"#,
         req.timeseries.identifier,
     )
     .fetch_one(&pool)
@@ -217,7 +219,10 @@ pub async fn read_meta(
 ) -> Result<Json<MetaRows>, ApiError> {
     let query_offset = pagination.get_offset();
     let mut meta_query = sqlx::query(
-        "select id, identifier, unit, carrier from meta order by id offset $1 limit $2",
+        r"
+        select meta.id as id, meta.identifier as identifier, meta.unit as unit, energy_carrier.name as carrier
+        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        order by id offset $1 limit $2",
     );
     meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.get_per_page_or_default());
@@ -248,7 +253,12 @@ pub async fn add_meta(
 ) -> Result<Json<MetaOutput>, ApiError> {
     let meta_output: MetaOutput = sqlx::query_as!(
         MetaOutput,
-        "insert into meta (identifier, unit, carrier) values ($1, $2, $3) returning id, identifier, unit, carrier",
+        r"
+        insert into meta (identifier, unit, carrier)
+        select $1, $2, energy_carrier.id
+        from energy_carrier
+        where energy_carrier.name = $3
+        returning id, identifier, unit, $3 as carrier",
         &meta.identifier,
         &meta.unit,
         meta.carrier.as_deref(),
@@ -284,7 +294,7 @@ mod tests {
         let meta = MetaInput {
             identifier: identifier.to_string(),
             unit: String::from("testUnit"),
-            carrier: Some(String::from("testCarrier")),
+            carrier: Some(String::from("oil")),
         };
         let res = client.post("/v1/meta/").json(&meta).send().await;
         assert!(res.status().is_success());

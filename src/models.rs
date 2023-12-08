@@ -55,7 +55,7 @@ pub struct TimeseriesMeta {
     pub id: i32,
     pub identifier: String,
     pub unit: String,
-    pub carrier: Option<String>,
+    pub carrier: Option<i32>,
     pub consumption: Option<bool>,
 }
 
