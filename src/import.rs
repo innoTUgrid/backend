@@ -1,9 +1,8 @@
 use crate::error::ApiError;
 
-use crate::models::NewDatapoint;
-use crate::models::{Datapoint, MetaInput, MetaOutput, Result};
+use crate::models::{NewDatapoint, TimeseriesMeta, MetaInput};
 
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
 
 pub async fn import<T: std::io::Read>(
@@ -20,41 +19,53 @@ pub async fn import<T: std::io::Read>(
         .to_owned();
 
     for (i, header) in headers {
-        // look for headers like "Production_kW"
-        let split = header.rsplitn(2, '_').collect::<Vec<_>>();
+        // look for headers like "Production#electricity_kW"
+        let split = header.rsplitn(2, '#').collect::<Vec<_>>();
         if split.len() != 2 {
             continue;
         }
 
         let name = split[1];
+        let carrier_and_unit = split[0];
+        let split = carrier_and_unit.rsplitn(2, '_').collect::<Vec<_>>();
+        if split.len() != 2 {
+            continue;
+        }
         let unit = split[0];
+        let carrier = split[1];
+
+        sqlx::query!("select name from energy_carrier where name = $1", carrier)
+            .fetch_one(pool)
+            .await.map_err(|_| ApiError::Anyhow(anyhow::Error::msg(format!("Carrier '{}' not found", carrier))))?;
+
 
         let meta_input = MetaInput {
-            identifier: name.to_string(),
-            unit: unit.to_string(),
-            carrier: Some(String::from("oil")),
-            consumption: Some(true),
+            identifier: name.to_lowercase(),
+            unit: unit.to_lowercase(),
+            carrier: Some(carrier.to_string()),
+            consumption: Some(!name.to_lowercase().contains("production")),
         };
-        let mut meta_output: Result<MetaOutput, sqlx::Error> = sqlx::query_as!(
-            MetaOutput,
+        let mut meta_output: Result<TimeseriesMeta, sqlx::Error> = sqlx::query_as!(
+            TimeseriesMeta,
             r"
-                insert into meta (identifier, unit, carrier)
-                select $1, $2, energy_carrier.id
+                insert into meta (identifier, unit, carrier, consumption)
+                select $1, $2, energy_carrier.id, $4
                 from energy_carrier
                 where energy_carrier.name = $3
-                returning id, identifier, unit, $3 as carrier",
+                returning id, identifier, unit, $3 as carrier, consumption",
             &meta_input.identifier,
             &meta_input.unit,
-            meta_input.carrier.as_deref(),
+            meta_input.carrier.unwrap(),
+            meta_input.consumption.unwrap(),
         )
         .fetch_one(pool)
         .await;
 
         if meta_output.is_err() {
             meta_output = sqlx::query_as!(
-                MetaOutput,
+                TimeseriesMeta,
                 r"
-                    select meta.id, identifier, unit, energy_carrier.name as carrier
+                    select meta.id, identifier, unit, energy_carrier.name as carrier, consumption
                     from meta
                     inner join energy_carrier on energy_carrier.id = meta.carrier
                     where identifier = $1 and unit = $2
@@ -87,12 +98,10 @@ pub async fn import<T: std::io::Read>(
 
         // wow this is ultra smart
         // https://klotzandrew.com/blog/postgres-passing-65535-parameter-limit
-        let _datapoints: Vec<Datapoint> = sqlx::query_as!(
-            Datapoint,
+        sqlx::query!(
             r#"
                 insert into ts (series_timestamp, series_value, meta_id)
                 (select * from unnest($1::timestamptz[], $2::float[], $3::int[]))
-                returning id, series_timestamp as timestamp, series_value as value, created_at, updated_at
                 "#,
             &entries.iter().map(|x| x.timestamp).collect::<Vec<_>>(),
             &entries.iter().map(|x| x.value).collect::<Vec<_>>(),
@@ -100,10 +109,30 @@ pub async fn import<T: std::io::Read>(
                 .take(entries.len())
                 .collect::<Vec<_>>(),
         )
-        .fetch_all(pool)
+        .execute(pool)
         .await?;
-        // we could return the datapoints here, but we don't need them
     }
 
     Ok(())
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use csv::Reader;
+    use super::*;
+    use crate::infrastructure::create_connection_pool;
+
+
+    #[tokio::test]
+    async fn test_import() {
+        let pool = create_connection_pool().await;
+        let mock_csv = r"
+id,Time,Production#electricity_kW,Consumption#biomass_kW
+1,2020-01-01 00:00:00+00:00,1.0,2.0";
+        let mut reader = Reader::from_reader(mock_csv.as_bytes());
+        import(&pool, &mut reader).await.unwrap();
+    }
+
 }
