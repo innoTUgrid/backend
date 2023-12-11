@@ -33,6 +33,7 @@ pub async fn import<T: std::io::Read>(
             identifier: name.to_string(),
             unit: unit.to_string(),
             carrier: Some(String::from("oil")),
+            consumption: Some(true),
         };
         let mut meta_output: Result<MetaOutput, sqlx::Error> = sqlx::query_as!(
             MetaOutput,

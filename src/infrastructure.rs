@@ -1,5 +1,5 @@
 use crate::handlers::{
-    add_meta, add_timeseries, get_timeseries_by_identifier, ping, read_meta,
+    add_meta, add_timeseries, get_self_consumption, get_timeseries_by_identifier, ping, read_meta,
     resample_timeseries_by_identifier, upload_timeseries,
 };
 use axum::extract::DefaultBodyLimit;
@@ -29,6 +29,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
     Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))
+        .route("/v1/kpi/self_consumption/", get(get_self_consumption))
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
@@ -39,8 +40,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
             get(resample_timeseries_by_identifier),
         )
         // limit file size to 10MB
-        .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
         .with_state(pool)
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
 }
 
 pub fn read_log_level() -> Level {

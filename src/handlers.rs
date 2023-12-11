@@ -1,21 +1,112 @@
 use crate::error::ApiError;
 use crate::import::import;
-use crate::models::TimeseriesMeta;
 use crate::models::{
     Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint,
     ResampledTimeseries, Resampling, Result,
 };
+use crate::models::{KpiResult, TimeseriesMeta};
 use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
-
 use axum::extract::Multipart;
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
-
 use sqlx::{Pool, Postgres, Row};
-
 use std::string::String;
+
+pub async fn get_self_consumption(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<KpiResult>> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+    let consumption_record = sqlx::query!(
+        r"
+        select sum(series_value) as value
+        from ts join meta m on ts.meta_id = m.id
+        where m.consumption = True
+          and m.unit = 'kwh'
+          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        ",
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let production_record = sqlx::query!(
+        r"
+        select sum(series_value) as value
+        from ts join meta m on ts.meta_id = m.id
+        where m.consumption = False
+          and m.unit = 'kwh'
+          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        ",
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_one(&pool)
+    .await?;
+    let consumption: f64 = consumption_record.value.unwrap_or(1.0);
+    let production: f64 = production_record.value.unwrap_or(1.0);
+    let self_consumption = f64::min(consumption / production, 1.0);
+    let kpi_result = KpiResult {
+        value: self_consumption,
+        name: String::from("self_consumption"),
+        unit: None,
+        from_timestamp,
+        to_timestamp,
+    };
+    Ok(Json(kpi_result))
+}
+
+pub async fn get_autarky(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<KpiResult>> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let consumption_record = sqlx::query!(
+        r"
+        select sum(series_value) as value
+        from ts join meta m on ts.meta_id = m.id
+        where m.consumption = True
+          and m.unit = 'kwh'
+          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        ",
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let production_record = sqlx::query!(
+        r"
+        select sum(series_value) as value
+        from ts join meta m on ts.meta_id = m.id
+        where m.consumption = False
+          and m.unit = 'kwh'
+          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        ",
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let consumption: f64 = consumption_record.value.unwrap_or(1.0);
+    let production: f64 = production_record.value.unwrap_or(1.0);
+    let autarky = f64::min(production / consumption, 1.0);
+    let kpi_result = KpiResult {
+        value: autarky,
+        name: String::from("autarky"),
+        unit: None,
+        from_timestamp,
+        to_timestamp,
+    };
+    Ok(Json(kpi_result))
+}
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
@@ -27,7 +118,10 @@ pub async fn resample_timeseries_by_identifier(
     let pg_resampling_interval = resampling.map_interval()?;
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
-        r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
+        r#"
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        where meta.identifier = $1"#,
         identifier,
     )
     .fetch_one(&pool)
@@ -77,7 +171,10 @@ pub async fn get_timeseries_by_identifier(
     // additionally we can always return matching metadata even if query param filters lead to empty result set
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
-        r#"select id, identifier, unit, carrier, consumption from meta where meta.identifier = $1"#,
+        r#"
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        where meta.identifier = $1"#,
         identifier,
     )
     .fetch_one(&pool)
@@ -118,8 +215,9 @@ pub async fn add_timeseries(
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"
-        select id, identifier, unit, carrier, consumption
-        from meta where meta.identifier = $1"#,
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        where meta.identifier = $1"#,
         req.timeseries.identifier,
     )
     .fetch_one(&pool)
@@ -243,6 +341,7 @@ mod tests {
             identifier: identifier.to_string(),
             unit: String::from("testUnit"),
             carrier: Some(String::from("oil")),
+            consumption: Some(true),
         };
         let res = client.post("/v1/meta/").json(&meta).send().await;
         assert!(res.status().is_success());

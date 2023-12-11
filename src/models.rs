@@ -55,7 +55,7 @@ pub struct TimeseriesMeta {
     pub id: i32,
     pub identifier: String,
     pub unit: String,
-    pub carrier: Option<i32>,
+    pub carrier: Option<String>,
     pub consumption: Option<bool>,
 }
 
@@ -153,6 +153,7 @@ pub struct MetaInput {
     pub identifier: String,
     pub unit: String,
     pub carrier: Option<String>,
+    pub consumption: Option<bool>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MetaOutput {
@@ -273,6 +274,21 @@ impl Default for TimestampFilter {
 #[derive(Debug, Deserialize)]
 pub struct IdentifiersQuery {
     identifiers: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum Kpi {
+    #[serde(rename = "self_consumption")]
+    SelfConsumption,
+}
+
+#[derive(Debug, Serialize)]
+pub struct KpiResult {
+    pub value: f64,
+    pub name: String,
+    pub unit: Option<String>,
+    pub from_timestamp: OffsetDateTime,
+    pub to_timestamp: OffsetDateTime,
 }
 
 #[test]
