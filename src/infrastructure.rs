@@ -1,7 +1,4 @@
-use crate::handlers::{
-    add_meta, add_timeseries, get_self_consumption, get_timeseries_by_identifier, ping, read_meta,
-    resample_timeseries_by_identifier, upload_timeseries,
-};
+use crate::handlers::{add_meta, add_timeseries, get_autarky, get_scope_two_emissions, get_self_consumption, get_timeseries_by_identifier, ping, read_meta, resample_timeseries_by_identifier, upload_timeseries};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
 use axum::{routing::get, Router};
@@ -30,6 +27,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/", get(ping))
         .route("/v1/", get(ping))
         .route("/v1/kpi/self_consumption/", get(get_self_consumption))
+        .route("/v1/kpi/autarky/", get(get_autarky))
+        .route("/v1/kpi/scope_two_emissions/", get(get_scope_two_emissions))
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))

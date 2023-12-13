@@ -280,6 +280,19 @@ pub struct IdentifiersQuery {
 pub enum Kpi {
     #[serde(rename = "self_consumption")]
     SelfConsumption,
+    #[serde(rename = "local_emissions")]
+    LocalEmissions,
+}
+
+// struct to hold intermediate results for consumption kpi
+pub struct Consumption {
+    pub bucket: Option<OffsetDateTime>,
+    pub total_consumption: Option<f64>,
+    pub carrier_proportion: Option<f64>,
+    pub emission_factor: f64,
+    pub consumption_unit: String,
+    pub carrier_name: String,
+    pub emission_unit: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -287,8 +300,18 @@ pub struct KpiResult {
     pub value: f64,
     pub name: String,
     pub unit: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     pub from_timestamp: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub to_timestamp: OffsetDateTime,
+}
+#[derive(Debug, Serialize)]
+pub struct ScopeTwoEmissions {
+    #[serde(with="time::serde::rfc3339")]
+    pub bucket: OffsetDateTime,
+    pub carrier_name: String,
+    pub value: f64,
+    pub unit: String,
 }
 
 #[test]
