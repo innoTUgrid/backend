@@ -1,6 +1,9 @@
 use crate::error::ApiError;
 use crate::import::import;
-use crate::models::{Consumption, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling, Result, ScopeTwoEmissions};
+use crate::models::{
+    Consumption, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse,
+    ResampledDatapoint, ResampledTimeseries, Resampling, Result, ScopeTwoEmissions,
+};
 use crate::models::{KpiResult, TimeseriesMeta};
 use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
@@ -115,14 +118,15 @@ pub async fn get_scope_two_emissions(
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-
     let consumption_record = sqlx::query_file_as!(
         Consumption,
         "src/sql/scope_two_emissions.sql",
         pg_resampling_interval,
         from_timestamp,
         to_timestamp,
-    ).fetch_all(&pool).await?;
+    )
+    .fetch_all(&pool)
+    .await?;
 
     let mut kpi_results: Vec<ScopeTwoEmissions> = vec![];
     for consumption in consumption_record {
@@ -136,7 +140,6 @@ pub async fn get_scope_two_emissions(
         kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
-
 }
 
 /// timeseries values for specific metadata and a given interval

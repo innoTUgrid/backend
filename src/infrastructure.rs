@@ -1,4 +1,8 @@
-use crate::handlers::{add_meta, add_timeseries, get_autarky, get_scope_two_emissions, get_self_consumption, get_timeseries_by_identifier, ping, read_meta, resample_timeseries_by_identifier, upload_timeseries};
+use crate::handlers::{
+    add_meta, add_timeseries, get_autarky, get_scope_two_emissions, get_self_consumption,
+    get_timeseries_by_identifier, ping, read_meta, resample_timeseries_by_identifier,
+    upload_timeseries,
+};
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
 use axum::{routing::get, Router};

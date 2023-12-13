@@ -307,7 +307,7 @@ pub struct KpiResult {
 }
 #[derive(Debug, Serialize)]
 pub struct ScopeTwoEmissions {
-    #[serde(with="time::serde::rfc3339")]
+    #[serde(with = "time::serde::rfc3339")]
     pub bucket: OffsetDateTime,
     pub carrier_name: String,
     pub value: f64,

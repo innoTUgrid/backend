@@ -1,6 +1,6 @@
 use crate::error::ApiError;
 
-use crate::models::{NewDatapoint, TimeseriesMeta, MetaInput};
+use crate::models::{MetaInput, NewDatapoint, TimeseriesMeta};
 
 use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
@@ -36,8 +36,13 @@ pub async fn import<T: std::io::Read>(
 
         sqlx::query!("select name from energy_carrier where name = $1", carrier)
             .fetch_one(pool)
-            .await.map_err(|_| ApiError::Anyhow(anyhow::Error::msg(format!("Carrier '{}' not found", carrier))))?;
-
+            .await
+            .map_err(|_| {
+                ApiError::Anyhow(anyhow::Error::msg(format!(
+                    "Carrier '{}' not found",
+                    carrier
+                )))
+            })?;
 
         let meta_input = MetaInput {
             identifier: name.to_lowercase(),
@@ -116,14 +121,11 @@ pub async fn import<T: std::io::Read>(
     Ok(())
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use csv::Reader;
     use super::*;
     use crate::infrastructure::create_connection_pool;
-
+    use csv::Reader;
 
     #[tokio::test]
     async fn test_import() {
@@ -134,5 +136,4 @@ id,Time,Production#electricity_kW,Consumption#biomass_kW
         let mut reader = Reader::from_reader(mock_csv.as_bytes());
         import(&pool, &mut reader).await.unwrap();
     }
-
 }
