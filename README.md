@@ -20,5 +20,5 @@ The backend consists of multiple independent services each providing different f
 - log into database
 `psql -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}`
 
-### check documentation
-1. open the `documentation/inno2grid_api_documentation.yaml` using the [Online Swagger Editor](https://editor.swagger.io/)
+### check API documentation
+open the `documentation/inno2grid_api_documentation.yaml` using the [Online Swagger Editor](https://editor.swagger.io/)
