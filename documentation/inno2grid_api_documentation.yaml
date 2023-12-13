@@ -1,0 +1,452 @@
+openapi: 3.0.3
+info:
+  title: innoTUgrid - OpenAPI 3.0
+  version: 1.0.1
+  description: |-
+    This is the documentation for the API of the backend that powers the innoTUgrid dashboard.
+    
+    Some useful links:
+    - [innoTUgrid repository](https://github.com/innoTUgrid)
+    
+  termsOfService: http://swagger.io/terms/
+  
+  contact:
+    email: awesome.team@innoTUgrid.xyz
+  
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+  
+servers:
+  - url: https://localhost:3000
+
+tags:
+  - name: ts
+    description: timestamped values for consumption & production 
+  - name: meta
+    description: meta information about timeseries values
+  - name: kpi
+    description: scope 1 & 2 calculations
+
+paths:
+  
+  /v1/ts/{identifier}/:
+    get:
+      tags:
+        - ts
+      summary: Get timeseries by identifier
+      description: Retrieves all timeseries data points for a given identifier.
+      parameters:
+        - in: path
+          name: identifier
+          required: true
+          schema:
+            type: string
+          description: The identifier of the timeseries.
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering.
+      responses:
+        '200':
+          description: Successfully retrieved timeseries data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timeseries'
+
+  /v1/ts/{identifier}/resample:
+    get:
+      tags:
+        - ts
+      summary: Resample timeseries data
+      description: Returns resampled timeseries data based on the provided interval.
+      parameters:
+        - in: path
+          name: identifier
+          required: true
+          schema:
+            type: string
+          description: The identifier of the timeseries to resample.
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: true
+          description: The interval for resampling (e.g., '1hour', '30min').
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering.
+      responses:
+        '200':
+          description: Successfully retrieved resampled timeseries data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResampledTimeseries'
+
+  /v1/ts/:
+    post:
+      tags:
+        - ts
+      summary: Add timeseries data
+      description: Adds a new timeseries data point.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeseriesBody'
+      responses:
+        '200':
+          description: Successfully added timeseries data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeseriesBody'
+
+  /v1/ts/upload:
+    post:
+      tags:
+        - ts
+      summary: Upload timeseries data
+      description: Uploads a file containing timeseries data for bulk insertion.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Successfully uploaded and processed file.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /v1/kpi/self_consumption/:
+    get:
+      tags:
+        - kpi
+      summary: Get self-consumption KPI
+      description: Retrieves the self-consumption KPI based on provided timestamps.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering.
+      responses:
+        '200':
+          description: Successfully retrieved KPI result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiResult'
+                
+  /v1/kpi/autarky/:
+    get:
+      tags:
+        - kpi
+      summary: Get Autarky KPI
+      description: Retrieves the autarky key performance indicator.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering.
+      responses:
+        '200':
+          description: Successfully retrieved the autarky KPI.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiResult'
+
+  /v1/kpi/scope_two_emissions/:
+    get:
+      tags:
+        - kpi
+      summary: Get Scope Two Emissions
+      description: Retrieves the scope two emissions data, resampled over a specified interval.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering.
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: true
+          description: The interval for resampling (e.g., '1hour', '30min').
+      responses:
+        '200':
+          description: Successfully retrieved scope two emissions data.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScopeTwoEmissions'
+
+  /v1/meta/:
+    get:
+      tags:
+        - meta
+      summary: Read metadata
+      description: Fetches all metadata with pagination.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          required: false
+          description: Page number for pagination.
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+          required: false
+          description: Number of items per page.
+      responses:
+        '200':
+          description: Successfully retrieved metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaRows'
+    post:
+      tags:
+        - meta
+      summary: Add metadata
+      description: Adds new metadata to the system.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetaInput'
+      responses:
+        '200':
+          description: Successfully added metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaOutput'
+
+components:
+  schemas:
+    
+    TimeseriesBody:
+      type: object
+      properties:
+        timeseries:
+          $ref: '#/components/schemas/NewDatapoint'
+
+    NewDatapoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+        identifier:
+          type: string
+
+    Timeseries:
+      type: object
+      properties:
+        datapoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Datapoint'
+        meta:
+          $ref: '#/components/schemas/TimeseriesMeta'
+
+    Datapoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TimeseriesMeta:
+      type: object
+      properties:
+        id:
+          type: integer
+        identifier:
+          type: string
+        unit:
+          type: string
+        carrier:
+          type: string
+          nullable: true
+        consumption:
+          type: boolean
+          nullable: true
+
+    ResampledTimeseries:
+      type: object
+      properties:
+        datapoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResampledDatapoint'
+        meta:
+          $ref: '#/components/schemas/TimeseriesMeta'
+
+    ResampledDatapoint:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+          nullable: true
+        mean_value:
+          type: number
+          format: double
+          nullable: true
+    
+    KpiResult:
+      type: object
+      properties:
+        value:
+          type: number
+          format: double
+        name:
+          type: string
+        unit:
+          type: string
+          nullable: true
+        from_timestamp:
+          type: string
+          format: date-time
+        to_timestamp:
+          type: string
+          format: date-time
+
+    ScopeTwoEmissions:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+        carrier_name:
+          type: string
+        unit:
+          type: string
+
+    MetaInput:
+      type: object
+      properties:
+        identifier:
+          type: string
+        unit:
+          type: string
+        carrier:
+          type: string
+          nullable: true
+        consumption:
+          type: boolean
+          nullable: true
+
+    MetaOutput:
+      type: object
+      properties:
+        id:
+          type: integer
+        identifier:
+          type: string
+        unit:
+          type: string
+        carrier:
+          type: string
+          nullable: true
+
+    MetaRows:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetaOutput'
