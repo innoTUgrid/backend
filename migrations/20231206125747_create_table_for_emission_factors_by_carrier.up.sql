@@ -2,7 +2,7 @@
 create table if not exists emission_factor (
    id serial primary key,
    carrier integer references energy_carrier(id) not null,
-   factor numeric not null,
+   factor double precision not null,
    unit text not null,
    source text not null,
    source_url text,
