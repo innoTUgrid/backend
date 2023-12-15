@@ -1,9 +1,6 @@
 use crate::error::ApiError;
 use crate::import::import;
-use crate::models::{
-    Consumption, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse,
-    ResampledDatapoint, ResampledTimeseries, Resampling, Result, ScopeTwoEmissions,
-};
+use crate::models::{Consumption, ConsumptionWithEmissions, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling, Result, KpiResultByCarrier};
 use crate::models::{KpiResult, TimeseriesMeta};
 use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
@@ -22,11 +19,14 @@ pub async fn get_self_consumption(
     let to_timestamp = timestamp_filter.to.unwrap();
     let consumption_record = sqlx::query!(
         r"
-        select sum(series_value) as value
-        from ts join meta m on ts.meta_id = m.id
-        where m.consumption = True
-          and m.unit = 'kwh'
-          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        select
+            sum(series_value) as value
+        from ts
+            join meta m on ts.meta_id = m.id
+        where
+            m.consumption = true and
+            m.identifier = 'total_load' and
+            ts.series_timestamp between $1::timestamptz and $2::timestamptz
         ",
         from_timestamp,
         to_timestamp,
@@ -37,10 +37,11 @@ pub async fn get_self_consumption(
     let production_record = sqlx::query!(
         r"
         select sum(series_value) as value
-        from ts join meta m on ts.meta_id = m.id
-        where m.consumption = False
-          and m.unit = 'kwh'
-          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        from ts
+            join meta m on ts.meta_id = m.id
+        where
+            m.consumption = false and
+            ts.series_timestamp between $1::timestamptz and $2::timestamptz
         ",
         from_timestamp,
         to_timestamp,
@@ -69,12 +70,14 @@ pub async fn get_autarky(
 
     let consumption_record = sqlx::query!(
         r"
-        select sum(series_value) as value
-        from ts join meta m on ts.meta_id = m.id
-        where m.consumption = True
-          and m.unit = 'kwh'
-          and ts.series_timestamp >= $1::timestamptz
-          and ts.series_timestamp <= $2::timestamptz
+        select
+            sum(series_value) as value
+        from ts
+            join meta m on ts.meta_id = m.id
+        where
+            m.consumption = true and
+            m.identifier = 'total_load' and
+            ts.series_timestamp between $1::timestamptz and $2::timestamptz
         ",
         from_timestamp,
         to_timestamp,
@@ -84,11 +87,13 @@ pub async fn get_autarky(
 
     let production_record = sqlx::query!(
         r"
-        select sum(series_value) as value
-        from ts join meta m on ts.meta_id = m.id
-        where m.consumption = False
-          and m.unit = 'kwh'
-          and ts.series_timestamp >= $1::timestamptz and ts.series_timestamp <= $2::timestamptz
+        select
+            sum(series_value) as value
+        from ts
+            join meta m on ts.meta_id = m.id
+        where
+            m.consumption = false and
+            ts.series_timestamp between $1::timestamptz and $2::timestamptz
         ",
         from_timestamp,
         to_timestamp,
@@ -109,17 +114,18 @@ pub async fn get_autarky(
     Ok(Json(kpi_result))
 }
 
+
 pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
-) -> Result<Json<Vec<ScopeTwoEmissions>>> {
+) -> Result<Json<Vec<KpiResultByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
     let consumption_record = sqlx::query_file_as!(
-        Consumption,
+        ConsumptionWithEmissions,
         "src/sql/scope_two_emissions.sql",
         pg_resampling_interval,
         from_timestamp,
@@ -128,10 +134,10 @@ pub async fn get_scope_two_emissions(
     .fetch_all(&pool)
     .await?;
 
-    let mut kpi_results: Vec<ScopeTwoEmissions> = vec![];
+    let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
     for consumption in consumption_record {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0) * consumption.emission_factor;
-        let kpi_result = ScopeTwoEmissions {
+        let kpi_value = consumption.bucket_consumption.unwrap_or(0.0) * consumption.carrier_proportion.unwrap_or(1.0) * consumption.emission_factor;
+        let kpi_result = KpiResultByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
             carrier_name: consumption.carrier_name,
@@ -141,6 +147,41 @@ pub async fn get_scope_two_emissions(
     }
     Ok(Json(kpi_results))
 }
+
+pub async fn get_consumption(
+    State(pool): State<Pool<Postgres>>,
+    Query(timestamp_filter): Query<TimestampFilter>,
+    Query(resampling): Query<Resampling>
+) -> Result<Json<Vec<KpiResultByCarrier>>> {
+    let pg_resampling_interval = resampling.map_interval()?;
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let consumption_record: Vec<Consumption> = sqlx::query_file_as!(
+        Consumption,
+        "src/sql/consumption.sql",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
+    for consumption in consumption_record {
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0) * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_result = KpiResultByCarrier {
+            bucket: consumption.bucket.unwrap(),
+            value: kpi_value,
+            carrier_name: consumption.carrier_name,
+            unit: String::from("kwh"),
+        };
+        kpi_results.push(kpi_result);
+    }
+    Ok(Json(kpi_results))
+
+}
+
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(

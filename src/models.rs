@@ -284,14 +284,23 @@ pub enum Kpi {
     LocalEmissions,
 }
 
-// struct to hold intermediate results for consumption kpi
+// intermediate struct to hold results for local consumption of grid electricity
 pub struct Consumption {
     pub bucket: Option<OffsetDateTime>,
-    pub total_consumption: Option<f64>,
-    pub carrier_proportion: Option<f64>,
-    pub emission_factor: f64,
+    pub bucket_consumption: Option<f64>,
     pub consumption_unit: String,
+    pub carrier_proportion: Option<f64>,
     pub carrier_name: String,
+}
+
+// struct to hold intermediate results for scope two emission kpi
+pub struct ConsumptionWithEmissions {
+    pub bucket: Option<OffsetDateTime>,
+    pub bucket_consumption: Option<f64>,
+    pub consumption_unit: String,
+    pub carrier_proportion: Option<f64>,
+    pub carrier_name: String,
+    pub emission_factor: f64,
     pub emission_unit: String,
 }
 
@@ -305,8 +314,9 @@ pub struct KpiResult {
     #[serde(with = "time::serde::rfc3339")]
     pub to_timestamp: OffsetDateTime,
 }
+
 #[derive(Debug, Serialize)]
-pub struct ScopeTwoEmissions {
+pub struct KpiResultByCarrier {
     #[serde(with = "time::serde::rfc3339")]
     pub bucket: OffsetDateTime,
     pub carrier_name: String,
