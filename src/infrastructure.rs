@@ -10,6 +10,7 @@ use dotenv::dotenv;
 use sqlx::Postgres;
 use sqlx::{ConnectOptions, Pool};
 use std::str::FromStr;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::log::LevelFilter;
 use tracing::Level;
 
@@ -27,6 +28,8 @@ pub async fn create_connection_pool() -> Pool<Postgres> {
 }
 
 pub fn create_router(pool: Pool<Postgres>) -> Router {
+    let cors = CorsLayer::new().allow_origin(Any);
+
     Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))
@@ -42,6 +45,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
             "/v1/ts/:identifier/resample",
             get(resample_timeseries_by_identifier),
         )
+        .layer(cors)
         // limit file size to 10MB
         .with_state(pool)
         .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
@@ -63,6 +67,9 @@ pub fn read_log_level() -> Level {
 
 #[cfg(test)]
 mod tests {
+    use axum::http::header;
+    use axum_test_helper::TestClient;
+
     use crate::create_connection_pool;
     #[tokio::test]
     async fn test_create_pool_connection() {
@@ -72,5 +79,26 @@ mod tests {
             .await
             .expect("Failed to fetch from database");
         assert_eq!(row.0, 1, "Could not connect to database")
+    }
+
+    #[tokio::test]
+    async fn test_cors() {
+        let pool = create_connection_pool().await;
+        let router = crate::create_router(pool);
+        let client = TestClient::new(router);
+
+        let response = client
+            .get("/v1/")
+            .header(header::ORIGIN, "https://example.com")
+            .send()
+            .await;
+
+        assert_eq!(
+            response
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap(),
+            "*",
+        );
     }
 }
