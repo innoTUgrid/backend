@@ -46,21 +46,21 @@ paths:
           required: true
           schema:
             type: string
-          description: The identifier of the timeseries.
+          description: The identifier of the timeseries retrieved by calling `/v1/meta/` (e.g. <total_load>)
         - in: query
           name: from
           schema:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering.
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
         - in: query
           name: to
           schema:
             type: string
             format: date-time
           required: false
-          description: End timestamp for filtering.
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
           description: Successfully retrieved timeseries data.
@@ -87,21 +87,21 @@ paths:
           schema:
             type: string
           required: true
-          description: The interval for resampling (e.g., '1hour', '30min').
+          description: The interval for resampling (e.g. '1hour', '30min').
         - in: query
           name: from
           schema:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering.
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
         - in: query
           name: to
           schema:
             type: string
             format: date-time
           required: false
-          description: End timestamp for filtering.
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
           description: Successfully retrieved resampled timeseries data.
@@ -170,14 +170,14 @@ paths:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering.
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
         - in: query
           name: to
           schema:
             type: string
             format: date-time
           required: false
-          description: End timestamp for filtering.
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
           description: Successfully retrieved KPI result.
@@ -185,7 +185,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KpiResult'
-                
+  
+  #/v1/consumption:
+  #  get:
+  #    tags:
+  #      - kpi
+  #    summary: Get Consumption Data
+  #    description: Retrieves consumption data based on timestamp filters and resampling parameters.
+  #    parameters:
+  #      - in: query
+  #        name: from
+  #        schema:
+  #          type: string
+  #          format: date-time
+  #        required: false
+  #        description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+  #      - in: query
+  #        name: to
+  #        schema:
+  #          type: string
+  #          format: date-time
+  #        required: false
+  #        description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+  #      - in: query
+  #        name: interval
+  #        schema:
+  #          type: string
+  #        required: false
+  #        description: The resampling interval (e.g., "1hour", "30min").
+  #    responses:
+  #      '200':
+  #        description: Successful response
+  #        content:
+  #          application/json:
+  #            schema:
+  #              type: array
+  #              items:
+  #                $ref: '#/components/schemas/KpiResultByCarrier'
+                  
   /v1/kpi/autarky/:
     get:
       tags:
@@ -199,14 +236,14 @@ paths:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering.
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
         - in: query
           name: to
           schema:
             type: string
             format: date-time
           required: false
-          description: End timestamp for filtering.
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
           description: Successfully retrieved the autarky KPI.
@@ -228,14 +265,14 @@ paths:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering.
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
         - in: query
           name: to
           schema:
             type: string
             format: date-time
           required: false
-          description: End timestamp for filtering.
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
         - in: query
           name: interval
           schema:
@@ -401,6 +438,29 @@ components:
         to_timestamp:
           type: string
           format: date-time
+          
+    KpiResultByCarrier:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+          description: The time bucket for the data, formatted in RFC 3339 format.
+        carrier_name:
+          type: string
+          description: The name of the energy carrier.
+        value:
+          type: number
+          format: double
+          description: The calculated value for the specific carrier and time bucket.
+        unit:
+          type: string
+          description: The unit of measurement for the value, typically "kwh".
+      required:
+        - bucket
+        - carrier_name
+        - value
+        - unit
 
     ScopeTwoEmissions:
       type: object

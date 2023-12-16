@@ -270,11 +270,12 @@ impl Default for TimestampFilter {
         }
     }
 }
-
+/*
 #[derive(Debug, Deserialize)]
 pub struct IdentifiersQuery {
     identifiers: Vec<String>,
 }
+*/
 
 #[derive(Debug, Deserialize)]
 pub enum Kpi {

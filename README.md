@@ -21,4 +21,5 @@ The backend consists of multiple independent services each providing different f
 `psql -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}`
 
 ### check API documentation
-open the `documentation/inno2grid_api_documentation.yaml` using the [Online Swagger Editor](https://editor.swagger.io/)
+Open the `documentation/inno2grid_api_documentation.yaml` using the [Online Swagger Editor](https://editor.swagger.io/).
+If you want to run API calls from Swagger you might need to run it locally. Follow the [Swagger Docs to set up a localhost using Docker](https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/).
