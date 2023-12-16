@@ -1,6 +1,10 @@
 use crate::error::ApiError;
 use crate::import::import;
-use crate::models::{Consumption, ConsumptionWithEmissions, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling, Result, KpiResultByCarrier};
+use crate::models::{
+    Consumption, ConsumptionWithEmissions, Datapoint, KpiResultByCarrier, MetaInput, MetaOutput,
+    MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling,
+    Result,
+};
 use crate::models::{KpiResult, TimeseriesMeta};
 use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
@@ -114,7 +118,6 @@ pub async fn get_autarky(
     Ok(Json(kpi_result))
 }
 
-
 pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
@@ -136,7 +139,9 @@ pub async fn get_scope_two_emissions(
 
     let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
     for consumption in consumption_record {
-        let kpi_value = consumption.bucket_consumption.unwrap_or(0.0) * consumption.carrier_proportion.unwrap_or(1.0) * consumption.emission_factor;
+        let kpi_value = consumption.bucket_consumption.unwrap_or(0.0)
+            * consumption.carrier_proportion.unwrap_or(1.0)
+            * consumption.emission_factor;
         let kpi_result = KpiResultByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
@@ -151,7 +156,7 @@ pub async fn get_scope_two_emissions(
 pub async fn get_consumption(
     State(pool): State<Pool<Postgres>>,
     Query(timestamp_filter): Query<TimestampFilter>,
-    Query(resampling): Query<Resampling>
+    Query(resampling): Query<Resampling>,
 ) -> Result<Json<Vec<KpiResultByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
@@ -169,7 +174,8 @@ pub async fn get_consumption(
 
     let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
     for consumption in consumption_record {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0) * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
+            * consumption.bucket_consumption.unwrap_or(0.0);
         let kpi_result = KpiResultByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
@@ -179,9 +185,7 @@ pub async fn get_consumption(
         kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
-
 }
-
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
