@@ -50,9 +50,9 @@ from
         from ts
                  join meta on ts.meta_id = meta.id
         where
-            -- TODO: this might be wrong and is definitely hacky
+            -- TODO: hardcoding the identifier is not nice and hacky
             meta.consumption = true and
-            meta.identifier = 'total_load' and
+            meta.identifier = 'grid_reference_smard' and
             ts.series_timestamp between $2 and $3
         group by
             bucket,

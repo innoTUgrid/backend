@@ -51,3 +51,8 @@ insert into emission_factor
 (carrier, factor, unit, source, source_url)
 select id, 0.230, 'kgco2eq/kwh', 'IPCC', null
 from energy_carrier where energy_carrier.name = 'biomass';
+
+insert into emission_factor
+(carrier, factor, unit, source, source_url)
+select id, 0.230, 'kgco2eq/kwh', 'IPCC', null
+from energy_carrier where energy_carrier.name = 'biogas';

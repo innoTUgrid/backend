@@ -317,12 +317,21 @@ pub struct KpiResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct KpiResultByCarrier {
+pub struct EmissionsByCarrier{
     #[serde(with = "time::serde::rfc3339")]
     pub bucket: OffsetDateTime,
     pub carrier_name: String,
     pub value: f64,
     pub unit: String,
+}
+#[derive(Debug, Serialize)]
+pub struct ConsumptionByCarrier {
+    #[serde(with = "time::serde::rfc3339")]
+    pub bucket: OffsetDateTime,
+    pub carrier_name: String,
+    pub value: f64,
+    pub unit: String,
+    pub local: bool,
 }
 
 #[test]

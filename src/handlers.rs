@@ -1,10 +1,6 @@
 use crate::error::ApiError;
 use crate::import::import;
-use crate::models::{
-    Consumption, ConsumptionWithEmissions, Datapoint, KpiResultByCarrier, MetaInput, MetaOutput,
-    MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling,
-    Result,
-};
+use crate::models::{Consumption, ConsumptionWithEmissions, Datapoint, MetaInput, MetaOutput, MetaRows, Pagination, PingResponse, ResampledDatapoint, ResampledTimeseries, Resampling, Result, EmissionsByCarrier, ConsumptionByCarrier};
 use crate::models::{KpiResult, TimeseriesMeta};
 use crate::models::{NewDatapoint, TimeseriesBody};
 use crate::models::{Timeseries, TimestampFilter};
@@ -14,6 +10,7 @@ use axum::Json;
 use axum_extra::extract::WithRejection;
 use sqlx::{Pool, Postgres, Row};
 use std::string::String;
+use rand::{random, Rng};
 
 pub async fn get_self_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
@@ -118,11 +115,43 @@ pub async fn get_autarky(
     Ok(Json(kpi_result))
 }
 
+pub async fn get_co2_savings(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>
+) -> Result<Json<KpiResult>> {
+    let random_co2_savings= rand::thread_rng().gen_range(0.0..100.0);
+    let kpi = KpiResult {
+        value: random_co2_savings,
+        name: String::from("co2_savings"),
+        unit: Some(String::from("kgco2eq")),
+        from_timestamp: timestamp_filter.to.unwrap(),
+        to_timestamp: timestamp_filter.to.unwrap(),
+    };
+    Ok(Json(kpi))
+}
+
+pub async fn get_cost_savings(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>
+) -> Result<Json<KpiResult>> {
+    let random_cost_savings = rand::thread_rng().gen_range(0.0..100.0);
+    let kpi = KpiResult {
+        value: random_cost_savings,
+        name: String::from("cost_savings"),
+        unit: Some(String::from("EUR")),
+        from_timestamp: timestamp_filter.to.unwrap(),
+        to_timestamp: timestamp_filter.to.unwrap(),
+    };
+    Ok(Json(kpi))
+}
+
+
+
 pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
-) -> Result<Json<Vec<KpiResultByCarrier>>> {
+) -> Result<Json<Vec<EmissionsByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -137,12 +166,10 @@ pub async fn get_scope_two_emissions(
     .fetch_all(&pool)
     .await?;
 
-    let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
+    let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     for consumption in consumption_record {
-        let kpi_value = consumption.bucket_consumption.unwrap_or(0.0)
-            * consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.emission_factor;
-        let kpi_result = KpiResultByCarrier {
+        let kpi_value = consumption.bucket_consumption.unwrap_or(0.0) * consumption.carrier_proportion.unwrap_or(1.0) * consumption.emission_factor;
+        let kpi_result = EmissionsByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
             carrier_name: consumption.carrier_name,
@@ -156,15 +183,14 @@ pub async fn get_scope_two_emissions(
 pub async fn get_consumption(
     State(pool): State<Pool<Postgres>>,
     Query(timestamp_filter): Query<TimestampFilter>,
-    Query(resampling): Query<Resampling>,
-) -> Result<Json<Vec<KpiResultByCarrier>>> {
+    Query(resampling): Query<Resampling>
+) -> Result<Json<Vec<ConsumptionByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
-
-    let consumption_record: Vec<Consumption> = sqlx::query_file_as!(
+    let grid_consumption_records: Vec<Consumption> = sqlx::query_file_as!(
         Consumption,
-        "src/sql/consumption.sql",
+        "src/sql/grid_consumption.sql",
         pg_resampling_interval,
         from_timestamp,
         to_timestamp,
@@ -172,15 +198,37 @@ pub async fn get_consumption(
     .fetch_all(&pool)
     .await?;
 
-    let mut kpi_results: Vec<KpiResultByCarrier> = vec![];
-    for consumption in consumption_record {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0);
-        let kpi_result = KpiResultByCarrier {
+    let local_consumption_records: Vec<Consumption> = sqlx::query_file_as!(
+        Consumption,
+        "src/sql/local_consumption.sql",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut kpi_results: Vec<ConsumptionByCarrier> = vec![];
+    // TODO: not very pretty, duplicate iteration is a code smell imo
+    for consumption in grid_consumption_records {
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0) * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_result =  ConsumptionByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
             carrier_name: consumption.carrier_name,
             unit: String::from("kwh"),
+            local: false,
+        };
+        kpi_results.push(kpi_result);
+    }
+    for consumption in local_consumption_records {
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0) * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_result =  ConsumptionByCarrier {
+            bucket: consumption.bucket.unwrap(),
+            value: kpi_value,
+            carrier_name: consumption.carrier_name,
+            unit: String::from("kwh"),
+            local: true,
         };
         kpi_results.push(kpi_result);
     }

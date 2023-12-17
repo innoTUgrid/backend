@@ -1,4 +1,4 @@
--- local consumption per energy carrier
+-- grid consumption per energy carrier
 select
     local_consumption.bucket,
     local_consumption.bucket_consumption as bucket_consumption,
@@ -50,7 +50,7 @@ from
               join meta on ts.meta_id = meta.id
      where
          meta.consumption = true and
-         meta.identifier = 'total_load' and
+         meta.identifier = 'grid_reference_smard' and
          ts.series_timestamp between $2::timestamptz and $3::timestamptz
      group by
          bucket,

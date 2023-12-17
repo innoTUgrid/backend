@@ -29,6 +29,7 @@ tower-http = { version = "0.4.4", features = ["cors", "trace"] }
 #hyper = { version = "0.14.27", features = ["full"] }
 #tower = "0.4.13"
 #tokio-postgres = "0.7.10"
+rand = "0.8.5"
 
 [dev-dependencies]
 axum-test-helper = "0.3.0"
