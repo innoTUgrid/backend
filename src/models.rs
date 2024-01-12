@@ -236,6 +236,26 @@ impl Resampling {
         let encoded = PgInterval::try_from(duration).unwrap();
         Ok(encoded)
     }
+    pub fn hours_per_interval(&self) -> std::result::Result<f64, anyhow::Error> {
+        let re = Regex::new(r"(\d+)(\w+)").unwrap();
+        let caps = re
+            .captures(&self.interval)
+            .ok_or_else(|| anyhow!("Invalid interval format"))?;
+        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<i32>()?;
+        let unit_part = caps.get(2).map_or("", |m| m.as_str());
+
+        let hours_per_period = match unit_part {
+            "min" => num_part / 60,
+            "hour" => num_part,
+            "day" => num_part * 24,
+            "week" => num_part * 24 * 7,
+            "month" => num_part * 24 * 30, // approximately
+            "year" => num_part * 24 * 365, // approximately
+            _ => return Err(anyhow!("invalid interval format")),
+        };
+
+        Ok(hours_per_period as f64)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -317,7 +337,7 @@ pub struct KpiResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct EmissionsByCarrier{
+pub struct EmissionsByCarrier {
     #[serde(with = "time::serde::rfc3339")]
     pub bucket: OffsetDateTime,
     pub carrier_name: String,
@@ -333,6 +353,18 @@ pub struct ConsumptionByCarrier {
     pub unit: String,
     pub local: bool,
 }
+
+// struct to hold intermediate results for co2 savings kpi calculation
+pub struct Co2Savings {
+    pub bucket: Option<OffsetDateTime>,
+    pub local_emissions: Option<f64>,
+    pub hypothetical_emissions: Option<f64>,
+    pub production_unit: String,
+    pub local_emission_factor_unit: String,
+    pub grid_emission_factor_unit: String,
+}
+// compute the number of hours per period for watt to watt hour conversions taking into account different
+// resampling intervals
 
 #[test]
 fn test_map_interval() {
@@ -359,4 +391,13 @@ fn test_map_interval() {
     };
 
     assert!(resample.map_interval().is_err());
+}
+
+#[test]
+fn test_hours_per_period() {
+    let resample = Resampling {
+        interval: String::from("2month"),
+    };
+
+    assert_eq!(resample.hours_per_interval().unwrap(), 1440.0);
 }
