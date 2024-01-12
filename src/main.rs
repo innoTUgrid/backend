@@ -9,6 +9,9 @@ mod import;
 mod infrastructure;
 mod models;
 
+#[cfg(test)]
+mod tests;
+
 #[tokio::main]
 async fn main() {
     let log_level = read_log_level();
