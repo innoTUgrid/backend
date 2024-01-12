@@ -49,7 +49,6 @@ pub enum ApiError {
     #[error("an internal server error occurred")]
     Anyhow(#[from] anyhow::Error),
 
-    // clippy complains this is never reached
     #[error("request path not found")]
     NotFound,
 }
@@ -70,7 +69,6 @@ impl ApiError {
             Self::ParseFloatError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ParseIntError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::CsvError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            //Self::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }

@@ -13,7 +13,7 @@ use axum::extract::Multipart;
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
-use rand::{Rng};
+use rand::Rng;
 use sqlx::{Pool, Postgres, Row};
 use std::string::String;
 

@@ -1,8 +1,10 @@
+use crate::error::ApiError;
 use crate::handlers::{
     add_meta, add_timeseries, get_autarky, get_co2_savings, get_consumption, get_cost_savings,
     get_scope_two_emissions, get_self_consumption, get_timeseries_by_identifier, ping, read_meta,
     resample_timeseries_by_identifier, upload_timeseries,
 };
+use crate::models::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
 use axum::{routing::get, Router};
@@ -27,6 +29,10 @@ pub async fn create_connection_pool() -> Pool<Postgres> {
         .expect("Failed to create database connection pool")
 }
 
+async fn fallback_handler() -> Result<ApiError> {
+    Err(ApiError::NotFound)
+}
+
 pub fn create_router(pool: Pool<Postgres>) -> Router {
     let cors = CorsLayer::new().allow_origin(Any);
 
@@ -48,6 +54,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
             "/v1/ts/:identifier/resample",
             get(resample_timeseries_by_identifier),
         )
+        .fallback(get(fallback_handler))
         .layer(cors)
         // limit file size to 10MB
         .with_state(pool)
