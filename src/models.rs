@@ -245,12 +245,12 @@ impl Resampling {
         let unit_part = caps.get(2).map_or("", |m| m.as_str());
 
         let hours_per_period = match unit_part {
-            "min" => num_part / 60,
-            "hour" => num_part,
-            "day" => num_part * 24,
-            "week" => num_part * 24 * 7,
-            "month" => num_part * 24 * 30, // approximately
-            "year" => num_part * 24 * 365, // approximately
+            "min" => num_part as f64 / 60.0,
+            "hour" => num_part as f64,
+            "day" => (num_part as f64) * 24.0,
+            "week" => num_part as f64 * 24.0 * 7.0,
+            "month" => num_part as f64 * 24.0 * 30.0, // approximately
+            "year" => num_part as f64 * 24.0 * 365.0, // approximately            
             _ => return Err(anyhow!("invalid interval format")),
         };
 

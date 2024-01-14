@@ -120,6 +120,14 @@ pub async fn get_autarky(
     Ok(Json(kpi_result))
 }
 
+/* 
+calculate interval adjusted co2 savings as:
+co2_savings = (hypothetical_emissions - local_emissions) * offset
+where:
+local_emissions = avg(total_local_production.production * total_local_production.production_emission_factor)
+hypothetical_emissions = sum(production * carrier_proportion * emission_factor)
+offset = hours in interval e.g. for interval '15min' equals 15/60 == 0.25
+*/
 pub async fn get_co2_savings(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
@@ -174,6 +182,9 @@ pub async fn get_cost_savings(
     Ok(Json(kpi))
 }
 
+/*
+calc Scope 2 Emissions for each carrier
+*/
 pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
@@ -194,10 +205,14 @@ pub async fn get_scope_two_emissions(
     .await?;
 
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
+    let offset = resampling.hours_per_interval()?;
+    println!("offset {}", offset);
     for consumption in consumption_record {
         let kpi_value = consumption.bucket_consumption.unwrap_or(0.0)
             * consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.emission_factor;
+            * consumption.emission_factor
+            * offset;
+        println!("kpi_value {}", kpi_value);
         let kpi_result = EmissionsByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
