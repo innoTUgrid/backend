@@ -4,6 +4,7 @@ version: '3.9'
 services:
   app:
     container_name: rustapp
+    image: ghcr.io/innotugrid/backend:main
     build:
       context: .
       dockerfile: Dockerfile
