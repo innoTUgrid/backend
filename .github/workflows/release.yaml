@@ -48,6 +48,7 @@ jobs:
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
+          network: host
           build-args: |
             DATABASE_URL=postgres://db_user:db_password@localhost:8192/db_name
           push: true
