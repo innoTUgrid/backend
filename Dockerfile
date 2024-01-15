@@ -1,4 +1,4 @@
-FROM rust:1.73 as builder
+FROM rust:1.73-buster as builder
 
 WORKDIR /app
 
@@ -9,10 +9,11 @@ ENV DATABASE_URL=$DATABASE_URL
 
 COPY . .
 
+RUN ./scripts/init-db.sh
 RUN cargo build --release
 
 # Runtime stage: use a minimal debian image and only the compiled binary for the final image for running the application.
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 # Copies the compiled binary from the builder stage into the root of this minimal image.
 COPY --from=builder /app/target/release/inno2grid-backend .
 # Sets the user ID to a non-root user for security reasons.
