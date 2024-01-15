@@ -1,9 +1,15 @@
 use crate::error::ApiError;
-use crate::handlers::{
-    add_meta, add_timeseries, get_autarky, get_co2_savings, get_consumption, get_cost_savings,
-    get_scope_two_emissions, get_self_consumption, get_timeseries_by_identifier, ping, read_meta,
-    resample_timeseries_by_identifier, upload_timeseries,
+use crate::handlers::kpi::{
+    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions,
+    get_self_consumption,
 };
+use crate::handlers::meta::{add_meta, read_meta};
+use crate::handlers::timeseries::{
+    add_timeseries, get_timeseries_by_identifier, resample_timeseries_by_identifier,
+};
+use crate::handlers::util::ping;
+
+use crate::handlers::import::upload_timeseries;
 use crate::models::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;

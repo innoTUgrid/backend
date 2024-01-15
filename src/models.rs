@@ -250,7 +250,7 @@ impl Resampling {
             "day" => (num_part as f64) * 24.0,
             "week" => num_part as f64 * 24.0 * 7.0,
             "month" => num_part as f64 * 24.0 * 30.0, // approximately
-            "year" => num_part as f64 * 24.0 * 365.0, // approximately            
+            "year" => num_part as f64 * 24.0 * 365.0, // approximately
             _ => return Err(anyhow!("invalid interval format")),
         };
 
