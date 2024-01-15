@@ -1,64 +1,14 @@
-use crate::infrastructure::create_connection_pool;
-use crate::infrastructure::create_router;
-
-use crate::models::{
-    Datapoint, MetaInput, MetaOutput, MetaRows, PingResponse, ResampledTimeseries,
-};
+use crate::models::ResampledTimeseries;
 
 use crate::models::Timeseries;
-use crate::models::{NewDatapoint, TimeseriesBody};
-use axum_test_helper::TestClient;
-use rand::distributions::{Alphanumeric, DistString};
+use crate::models::TimeseriesBody;
+use crate::tests::test_util::add_meta;
+use crate::tests::test_util::add_timeseries;
+use crate::tests::test_util::get_client;
+use crate::tests::test_util::get_random_string;
+
 use serde_json::json;
 use time::OffsetDateTime;
-
-fn get_random_string(size: usize) -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), size)
-}
-
-async fn get_client() -> TestClient {
-    let pool = create_connection_pool().await;
-    let router = create_router(pool);
-
-    TestClient::new(router)
-}
-
-async fn add_meta(client: &TestClient, identifier: &str) -> MetaOutput {
-    let meta = MetaInput {
-        identifier: identifier.to_string(),
-        unit: String::from("testUnit"),
-        carrier: Some(String::from("oil")),
-        consumption: Some(true),
-    };
-    let res = client.post("/v1/meta/").json(&meta).send().await;
-    assert!(res.status().is_success());
-
-    let r: MetaOutput = res.json().await;
-    assert_eq!(r.identifier, identifier);
-    r
-}
-
-async fn add_timeseries(
-    client: &TestClient,
-    identifier: &str,
-    value: f64,
-) -> TimeseriesBody<Datapoint> {
-    let timeseries = NewDatapoint {
-        timestamp: OffsetDateTime::now_utc(),
-        value,
-        identifier: identifier.to_string(),
-    };
-    let res = client
-        .post("/v1/ts/")
-        .json(&TimeseriesBody { timeseries })
-        .send()
-        .await;
-    assert!(res.status().is_success());
-
-    let r: TimeseriesBody<Datapoint> = res.json().await;
-    assert_eq!(r.timeseries.value, value);
-    r
-}
 
 #[tokio::test]
 async fn test_add_timeseries_bad_data() {
@@ -78,53 +28,6 @@ async fn test_add_timeseries_bad_data() {
         .send()
         .await;
     assert!(response.status().is_client_error());
-}
-
-#[tokio::test]
-async fn test_add_meta_bad_data() {
-    let client = get_client().await;
-
-    let bad_metadata = json!(
-        {
-            "identifier": "testIdentifier",
-            "unitSchmunit": "testUnit",
-            "carrier": 42
-        }
-    );
-    let response = client.post("/v1/meta/").json(&bad_metadata).send().await;
-    assert!(response.status().is_client_error());
-}
-
-#[tokio::test]
-async fn test_read_meta() {
-    let client = get_client().await;
-
-    let identifier = get_random_string(10);
-    let meta = add_meta(&client, &identifier).await;
-
-    let response = client.get("/v1/meta/").send().await;
-    assert!(response.status().is_success());
-
-    let body: MetaRows = response.json().await;
-
-    assert!(
-        body.values.iter().any(|x| x.identifier == meta.identifier),
-        "identifier not found in response"
-    );
-}
-
-#[tokio::test]
-async fn test_ping() {
-    // Setup
-    let client = get_client().await;
-
-    // Send a request to the ping endpoint
-    let response = client.get("/v1/").send().await;
-
-    // Verify the response
-    assert!(response.status().is_success());
-    let body: PingResponse = response.json().await;
-    assert_eq!(body.message, "0xDECAFBAD");
 }
 
 #[tokio::test]

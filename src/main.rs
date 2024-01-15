@@ -8,8 +8,6 @@ mod handlers;
 mod import;
 mod infrastructure;
 mod models;
-
-#[cfg(test)]
 mod tests;
 
 #[tokio::main]

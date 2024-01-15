@@ -325,7 +325,7 @@ pub struct ConsumptionWithEmissions {
     pub emission_unit: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KpiResult {
     pub value: f64,
     pub name: String,
