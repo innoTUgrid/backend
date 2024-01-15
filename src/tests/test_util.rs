@@ -47,12 +47,12 @@ pub async fn add_timeseries(
     };
     let res = client
         .post("/v1/ts/")
-        .json(&TimeseriesBody { timeseries })
+        .json(&TimeseriesBody { timeseries: Vec::from([timeseries]) })
         .send()
         .await;
     assert!(res.status().is_success());
 
     let r: TimeseriesBody<Datapoint> = res.json().await;
-    assert_eq!(r.timeseries.value, value);
+    assert_eq!(r.timeseries[0].value, value);
     r
 }

@@ -7,6 +7,7 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 
 use sqlx::{Pool, Postgres};
+use std::collections::HashSet;
 use std::string::String;
 
 /// timeseries values for specific metadata and a given interval
@@ -107,35 +108,41 @@ pub async fn get_timeseries_by_identifier(
     Ok(Json(response))
 }
 
-/// fetch all timseries matching a comma-seperated list of identifiers
-/**/
 pub async fn add_timeseries(
     State(pool): State<Pool<Postgres>>,
     req: Json<TimeseriesBody<NewDatapoint>>,
 ) -> Result<Json<TimeseriesBody<Datapoint>>> {
-    let metadata = sqlx::query_as!(
+    let mut identifiers = req.timeseries.iter().map(|x| x.identifier.clone()).collect::<Vec<_>>();
+    identifiers.dedup();
+
+    let metadatas = sqlx::query_as!(
         TimeseriesMeta,
         r#"
         select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
         from meta join energy_carrier on meta.carrier = energy_carrier.id
-        where meta.identifier = $1"#,
-        req.timeseries.identifier,
+        where meta.identifier IN (select * from unnest($1::text[]))"#,
+        &identifiers,
     )
-    .fetch_one(&pool)
+    .fetch_all(&pool)
     .await?;
 
+    let entries = req.timeseries.iter().map(|x| {
+        (x.timestamp, x.value, metadatas.iter().find(|m| m.identifier == x.identifier).unwrap())
+    }).collect::<Vec<_>>();
+
+    // https://klotzandrew.com/blog/postgres-passing-65535-parameter-limit
     let timeseries = sqlx::query_as!(
         Datapoint,
         r#"
-        insert into ts (series_timestamp, series_value, meta_id)
-        values ($1, $2, $3)
-        returning id, series_timestamp as timestamp, series_value as value, created_at, updated_at
+            insert into ts (series_timestamp, series_value, meta_id)
+            (select * from unnest($1::timestamptz[], $2::float[], $3::int[]))
+            returning id, series_timestamp as timestamp, series_value as value, created_at, updated_at
         "#,
-        req.timeseries.timestamp,
-        req.timeseries.value,
-        metadata.id
+        &entries.iter().map(|x| x.0).collect::<Vec<_>>(),
+        &entries.iter().map(|x| x.1).collect::<Vec<_>>(),
+        &entries.iter().map(|x| x.2.id).collect::<Vec<_>>(),
     )
-    .fetch_one(&pool)
+    .fetch_all(&pool)
     .await?;
 
     Ok(Json(TimeseriesBody { timeseries }))

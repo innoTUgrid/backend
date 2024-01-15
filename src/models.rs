@@ -120,7 +120,7 @@ pub struct NewDatapoint {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimeseriesBody<T = Timeseries> {
-    pub timeseries: T,
+    pub timeseries: Vec<T>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct SingleMetaResponse {
