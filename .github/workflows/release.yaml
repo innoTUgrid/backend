@@ -12,6 +12,16 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: db_name
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_password
+        ports:
+          - 8192:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s
     permissions:
       contents: read
       packages: write
@@ -32,9 +42,12 @@ jobs:
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
+      - name: Initialize Database
+        run: ./scripts/init-db.sh
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        env:
+          DATABASE_URL: postgres://db_user:db_password@localhost:8192/db_name
         with:
           context: .
           push: true
