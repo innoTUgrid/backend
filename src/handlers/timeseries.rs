@@ -7,7 +7,7 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 
 use sqlx::{Pool, Postgres};
-use std::collections::HashSet;
+
 use std::string::String;
 
 /// timeseries values for specific metadata and a given interval
@@ -112,7 +112,11 @@ pub async fn add_timeseries(
     State(pool): State<Pool<Postgres>>,
     req: Json<TimeseriesBody<NewDatapoint>>,
 ) -> Result<Json<TimeseriesBody<Datapoint>>> {
-    let mut identifiers = req.timeseries.iter().map(|x| x.identifier.clone()).collect::<Vec<_>>();
+    let mut identifiers = req
+        .timeseries
+        .iter()
+        .map(|x| x.identifier.clone())
+        .collect::<Vec<_>>();
     identifiers.dedup();
 
     let metadatas = sqlx::query_as!(
@@ -126,9 +130,20 @@ pub async fn add_timeseries(
     .fetch_all(&pool)
     .await?;
 
-    let entries = req.timeseries.iter().map(|x| {
-        (x.timestamp, x.value, metadatas.iter().find(|m| m.identifier == x.identifier).unwrap())
-    }).collect::<Vec<_>>();
+    let entries = req
+        .timeseries
+        .iter()
+        .map(|x| {
+            (
+                x.timestamp,
+                x.value,
+                metadatas
+                    .iter()
+                    .find(|m| m.identifier == x.identifier)
+                    .unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
 
     // https://klotzandrew.com/blog/postgres-passing-65535-parameter-limit
     let timeseries = sqlx::query_as!(

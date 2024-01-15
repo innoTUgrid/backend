@@ -24,7 +24,9 @@ async fn test_add_timeseries_bad_data() {
     });
     let response = client
         .post("/v1/ts/")
-        .json(&TimeseriesBody { timeseries: Vec::from([timeseries]) })
+        .json(&TimeseriesBody {
+            timeseries: Vec::from([timeseries]),
+        })
         .send()
         .await;
     assert!(response.status().is_client_error());
