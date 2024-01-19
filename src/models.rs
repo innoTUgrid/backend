@@ -254,7 +254,7 @@ impl Resampling {
             _ => return Err(anyhow!("invalid interval format")),
         };
 
-        Ok(hours_per_period as f64)
+        Ok(hours_per_period)
     }
 }
 

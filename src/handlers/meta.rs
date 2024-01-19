@@ -47,9 +47,11 @@ pub async fn add_meta(
         MetaOutput,
         r"
         insert into meta (identifier, unit, carrier)
-        select $1, $2, energy_carrier.id
-        from energy_carrier
-        where energy_carrier.name = $3
+        select $1, $2,
+            case
+                when $3::text is not null then (select energy_carrier.id from energy_carrier where energy_carrier.name = $3)
+                else null
+            end
         returning id, identifier, unit, $3 as carrier",
         &meta.identifier,
         &meta.unit,
