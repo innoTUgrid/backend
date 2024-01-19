@@ -2,7 +2,7 @@ use crate::error::ApiError;
 
 use crate::models::{MetaInput, MetaOutput, MetaRows, Pagination, Result};
 
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum_extra::extract::WithRejection;
 
@@ -24,8 +24,11 @@ pub async fn read_meta(
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
         from meta
-            join energy_carrier on meta.carrier = energy_carrier.id
-            join ts on meta.id = ts.meta_id
+            left join energy_carrier on meta.carrier = energy_carrier.id
+            left join ts on meta.id = ts.meta_id
+        group by
+            meta.id,
+            energy_carrier.name
         order by
             id
         offset $1
@@ -54,7 +57,7 @@ pub async fn read_meta(
 
 pub async fn get_meta_by_identifier(
     State(pool): State<Pool<Postgres>>,
-    identifier: String,
+    Path(identifier): Path<String>,
 ) -> Result<Json<MetaOutput>, ApiError> {
     let maybe_meta = sqlx::query_as!(
         MetaOutput,
@@ -67,19 +70,20 @@ pub async fn get_meta_by_identifier(
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
         from meta
-            join energy_carrier on meta.carrier = energy_carrier.id
-            join ts on ts.meta_id = meta.id
+            left join energy_carrier on meta.carrier = energy_carrier.id
+            left join ts on meta.id = ts.meta_id
         where
             meta.identifier = $1
         group by
             meta.id,
             energy_carrier.name
+        order by
+            id
             ",
         identifier
     )
     .fetch_optional(&pool)
     .await?;
-
     match maybe_meta {
         Some(meta_output) => Ok(Json(meta_output)),
         None => Err(ApiError::NotFound),

@@ -21,7 +21,6 @@ async fn main() {
         let mut reader = csv::Reader::from_path(filename).unwrap();
         let _pool = create_connection_pool().await;
         import::import(&_pool, &mut reader).await.unwrap();
-        println!("Imported file {}", filename);
         return;
     }
     let _pool = create_connection_pool().await;

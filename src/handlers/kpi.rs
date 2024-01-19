@@ -203,13 +203,11 @@ pub async fn get_scope_two_emissions(
 
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     let offset = resampling.hours_per_interval()?;
-    println!("offset {}", offset);
     for consumption in consumption_record {
         let kpi_value = consumption.bucket_consumption.unwrap_or(0.0)
             * consumption.carrier_proportion.unwrap_or(1.0)
             * consumption.emission_factor
             * offset;
-        println!("kpi_value {}", kpi_value);
         let kpi_result = EmissionsByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
