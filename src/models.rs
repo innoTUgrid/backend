@@ -62,15 +62,19 @@ pub struct TimeseriesMeta {
 #[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
 pub struct Datapoint {
     pub id: i64,
+    #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,
     pub value: f64,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
 }
 
 #[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
 /// TimescaleDB's `time_bucket` function returns a nullable column
 pub struct ResampledDatapoint {
+    #[serde(with = "time::serde::rfc3339::option")]
     pub bucket: Option<OffsetDateTime>,
     pub mean_value: Option<f64>,
 }
@@ -88,9 +92,6 @@ pub struct ResampledTimeseries {
 }
 
 /// Intermediate representation for join tables from the database.
-///
-///
-
 #[derive(Debug, Serialize)]
 pub struct DatapointWithMetadata {
     pub id: i64,
