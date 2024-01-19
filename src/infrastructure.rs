@@ -3,7 +3,7 @@ use crate::handlers::kpi::{
     get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions,
     get_self_consumption,
 };
-use crate::handlers::meta::{add_meta, read_meta};
+use crate::handlers::meta::{add_meta, get_meta_by_identifier, read_meta};
 use crate::handlers::timeseries::{
     add_timeseries, get_timeseries_by_identifier, resample_timeseries_by_identifier,
 };
@@ -53,6 +53,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/kpi/co2_savings/", get(get_co2_savings))
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/", get(read_meta))
+        .route("/v1/meta/:identifier/", get(get_meta_by_identifier))
         .route("/v1/ts/", post(add_timeseries))
         .route("/v1/ts/upload", post(upload_timeseries))
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))

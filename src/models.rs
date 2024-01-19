@@ -161,6 +161,8 @@ pub struct MetaOutput {
     pub identifier: String,
     pub unit: String,
     pub carrier: Option<String>,
+    pub min_timestamp: Option<OffsetDateTime>,
+    pub max_timestamp: Option<OffsetDateTime>,
 }
 
 #[derive(Serialize, Deserialize)]

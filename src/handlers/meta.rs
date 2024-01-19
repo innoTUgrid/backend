@@ -16,9 +16,20 @@ pub async fn read_meta(
     let query_offset = pagination.get_offset();
     let mut meta_query = sqlx::query(
         r"
-        select meta.id as id, meta.identifier as identifier, meta.unit as unit, energy_carrier.name as carrier
-        from meta join energy_carrier on meta.carrier = energy_carrier.id
-        order by id offset $1 limit $2",
+        select
+            meta.id as id,
+            meta.identifier as identifier,
+            meta.unit as unit,
+            energy_carrier.name as carrier,
+            min(ts.series_timestamp) as min_timestamp,
+            max(ts.series_timestamp) as max_timestamp
+        from meta
+            join energy_carrier on meta.carrier = energy_carrier.id
+            join ts on meta.id = ts.meta_id
+        order by
+            id
+        offset $1
+        limit $2",
     );
     meta_query = meta_query.bind(query_offset);
     meta_query = meta_query.bind(pagination.get_per_page_or_default());
@@ -30,6 +41,8 @@ pub async fn read_meta(
             identifier: row.get(1),
             unit: row.get(2),
             carrier: row.get(3),
+            min_timestamp: row.get(4),
+            max_timestamp: row.get(5),
         };
         json_values.push(meta_value);
     }
@@ -37,6 +50,40 @@ pub async fn read_meta(
         values: json_values,
     };
     Ok(Json(meta_rows))
+}
+
+pub async fn get_meta_by_identifier(
+    State(pool): State<Pool<Postgres>>,
+    identifier: String,
+) -> Result<Json<MetaOutput>, ApiError> {
+    let maybe_meta = sqlx::query_as!(
+        MetaOutput,
+        r"
+        select
+            meta.id as id,
+            meta.identifier as identifier,
+            meta.unit as unit,
+            energy_carrier.name as carrier,
+            min(ts.series_timestamp) as min_timestamp,
+            max(ts.series_timestamp) as max_timestamp
+        from meta
+            join energy_carrier on meta.carrier = energy_carrier.id
+            join ts on ts.meta_id = meta.id
+        where
+            meta.identifier = $1
+        group by
+            meta.id,
+            energy_carrier.name
+            ",
+        identifier
+    )
+    .fetch_optional(&pool)
+    .await?;
+
+    match maybe_meta {
+        Some(meta_output) => Ok(Json(meta_output)),
+        None => Err(ApiError::NotFound),
+    }
 }
 
 pub async fn add_meta(
@@ -47,12 +94,21 @@ pub async fn add_meta(
         MetaOutput,
         r"
         insert into meta (identifier, unit, carrier)
-        select $1, $2,
+        select
+            $1,
+            $2,
             case
-                when $3::text is not null then (select energy_carrier.id from energy_carrier where energy_carrier.name = $3)
+                when $3::text is not null then
+                    (select energy_carrier.id from energy_carrier where energy_carrier.name = $3)
                 else null
             end
-        returning id, identifier, unit, $3 as carrier",
+        returning
+            id,
+            identifier,
+            unit,
+            $3 as carrier,
+            null::timestamptz as min_timestamp,
+            null::timestamptz as max_timestamp",
         &meta.identifier,
         &meta.unit,
         meta.carrier.as_deref(),
