@@ -40,7 +40,8 @@ async fn fallback_handler() -> Result<ApiError> {
 }
 
 pub fn create_router(pool: Pool<Postgres>) -> Router {
-    let cors = CorsLayer::new().allow_origin(Any);
+    // for swagger-ui and mitigating common errors for development
+    let cors = CorsLayer::new().allow_origin(Any).allow_headers(Any);
 
     Router::new()
         .route("/", get(ping))

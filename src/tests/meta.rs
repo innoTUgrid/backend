@@ -1,4 +1,5 @@
 use crate::models::{MetaOutput, MetaRows};
+use crate::models::MetaInput;
 
 use crate::tests::test_util::add_meta;
 use crate::tests::test_util::get_client;
@@ -62,4 +63,24 @@ async fn test_read_meta() {
         body.values.iter().any(|x| x.identifier == meta.identifier),
         "identifier not found in response"
     );
+}
+
+#[tokio::test]
+async fn test_add_meta_empty_carrier() {
+    let client = get_client().await;
+
+    let identifier = get_random_string(10);
+
+    let meta = MetaInput {
+        identifier: identifier.to_string(),
+        unit: String::from("testUnit"),
+        carrier: None,
+        consumption: Some(true),
+    };
+    let res = client.post("/v1/meta/").json(&meta).send().await;
+    assert!(res.status().is_success());
+
+    let r: MetaOutput = res.json().await;
+    assert_eq!(r.identifier, identifier);
+    assert!(r.carrier.is_none());
 }
