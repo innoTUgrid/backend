@@ -1,4 +1,5 @@
 use crate::error::ApiError;
+use crate::handlers::config::{get_config, put_config};
 use crate::handlers::kpi::{
     get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions,
     get_self_consumption,
@@ -46,6 +47,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
     Router::new()
         .route("/", get(ping))
         .route("/v1/", get(ping))
+        .route("/v1/config/", post(put_config))
+        .route("/v1/config/", get(get_config))
         .route("/v1/kpi/consumption/", get(get_consumption))
         .route("/v1/kpi/scope_two_emissions/", get(get_scope_two_emissions))
         .route("/v1/kpi/self_consumption/", get(get_self_consumption))
