@@ -56,10 +56,10 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/meta/", get(read_meta))
         .route("/v1/meta/:identifier/", get(get_meta_by_identifier))
         .route("/v1/ts/", post(add_timeseries))
-        .route("/v1/ts/upload", post(upload_timeseries))
+        .route("/v1/ts/upload/", post(upload_timeseries))
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
         .route(
-            "/v1/ts/:identifier/resample",
+            "/v1/ts/:identifier/resample/",
             get(resample_timeseries_by_identifier),
         )
         .fallback(get(fallback_handler))

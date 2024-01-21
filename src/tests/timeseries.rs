@@ -123,7 +123,7 @@ async fn test_resample_timeseries_by_identifier() {
     add_timeseries(&client, &identifier, 66.0).await;
 
     let response = client
-        .get(&format!("/v1/ts/{}/resample?interval=1hour", identifier))
+        .get(&format!("/v1/ts/{}/resample/?interval=1hour", identifier))
         .send()
         .await;
     assert!(response.status().is_success());
@@ -142,7 +142,7 @@ async fn test_resample_timeseries_by_identifier_with_ts_filter_from() {
 
     let response = client
         .get(&format!(
-            "/v1/ts/{}/resample?interval=1hour&from=2022-11-29T09:31:51Z",
+            "/v1/ts/{}/resample/?interval=1hour&from=2022-11-29T09:31:51Z",
             identifier
         ))
         .send()
@@ -163,7 +163,7 @@ async fn test_resample_timeseries_by_identifier_with_ts_filter_to() {
 
     let response = client
         .get(&format!(
-            "/v1/ts/{}/resample?interval=1hour&to=2022-11-29T09:31:51Z",
+            "/v1/ts/{}/resample/?interval=1hour&to=2022-11-29T09:31:51Z",
             identifier
         ))
         .send()
@@ -184,7 +184,7 @@ async fn test_resample_timeseries_by_identifier_with_ts_filter() {
 
     let response = client
         .get(&format!(
-            "/v1/ts/{}/resample?interval=1hour&from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z",
+            "/v1/ts/{}/resample/?interval=1hour&from=2022-11-29T09:31:51Z&to=2022-12-01T00:00:00Z",
             identifier
         ))
         .send()
@@ -205,7 +205,7 @@ async fn test_resample_timeseries_by_identifier_bad_ts_filter() {
 
     let response = client
         .get(&format!(
-            "/v1/ts/{}/resample?interval=1hour&from=23542365346747&to=2022-12-01T00:00:00Z",
+            "/v1/ts/{}/resample/?interval=1hour&from=23542365346747&to=2022-12-01T00:00:00Z",
             identifier
         ))
         .send()
