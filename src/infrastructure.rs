@@ -1,3 +1,4 @@
+use crate::app_config::AppConfig;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
 use crate::handlers::kpi::{
@@ -21,14 +22,11 @@ use sqlx::{ConnectOptions, Pool};
 use std::str::FromStr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::log::LevelFilter;
-use tracing::Level;
 
-pub async fn create_connection_pool() -> Pool<Postgres> {
+pub async fn create_connection_pool(config: &AppConfig) -> Pool<Postgres> {
     dotenv().ok();
-    let database_url =
-        std::env::var("DATABASE_URL").expect("Couldn't find database url in .env file");
     // only log sql statements if log level is at least debug
-    let postgres_connect_options = sqlx::postgres::PgConnectOptions::from_str(&database_url)
+    let postgres_connect_options = sqlx::postgres::PgConnectOptions::from_str(&config.database_url)
         .expect("Failed to parse database url")
         .log_statements(LevelFilter::Debug);
     Pool::<Postgres>::connect_with(postgres_connect_options)
@@ -73,29 +71,15 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
 }
 
-pub fn read_log_level() -> Level {
-    dotenv().ok();
-    let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "INFO".to_string());
-    let log_level = match log_level.as_str() {
-        "DEBUG" => Level::DEBUG,
-        "INFO" => Level::INFO,
-        "WARN" => Level::WARN,
-        "ERROR" => Level::ERROR,
-        "TRACE" => Level::TRACE,
-        _ => Level::INFO,
-    };
-    log_level
-}
-
 #[cfg(test)]
 mod tests {
     use axum::http::header;
     use axum_test_helper::TestClient;
 
-    use crate::create_connection_pool;
+    use crate::{app_config::AppConfig, create_connection_pool};
     #[tokio::test]
     async fn test_create_pool_connection() {
-        let pool = create_connection_pool().await;
+        let pool = create_connection_pool(&AppConfig::new()).await;
         let row: (i32,) = sqlx::query_as("SELECT 1")
             .fetch_one(&pool)
             .await
@@ -105,7 +89,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors() {
-        let pool = create_connection_pool().await;
+        let pool = create_connection_pool(&AppConfig::new()).await;
         let router = crate::create_router(pool);
         let client = TestClient::new(router);
 

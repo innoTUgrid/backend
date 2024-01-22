@@ -124,12 +124,12 @@ pub async fn import<T: std::io::Read>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::create_connection_pool;
+    use crate::{app_config::AppConfig, infrastructure::create_connection_pool};
     use csv::Reader;
 
     #[tokio::test]
     async fn test_import() {
-        let pool = create_connection_pool().await;
+        let pool = create_connection_pool(&AppConfig::new()).await;
         let mock_csv = r"
 id,Time,Production#electricity_kW,Consumption#biomass_kW
 1,2020-01-01 00:00:00+00:00,1.0,2.0";

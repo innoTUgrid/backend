@@ -1,8 +1,13 @@
-use std::env;
+use std::{
+    env::args,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 
-use crate::infrastructure::{create_connection_pool, create_router, read_log_level};
+use crate::infrastructure::{create_connection_pool, create_router};
+use app_config::AppConfig;
 use tracing_subscriber::fmt;
 
+mod app_config;
 mod error;
 mod handlers;
 mod import;
@@ -12,22 +17,47 @@ mod tests;
 
 #[tokio::main]
 async fn main() {
-    let log_level = read_log_level();
-    fmt::Subscriber::builder().with_max_level(log_level).init();
+    let config = AppConfig::new();
+    fmt::Subscriber::builder()
+        .with_max_level(config.log_level)
+        .init();
 
-    let args: Vec<String> = env::args().collect();
-    if args.len() >= 3 && args[1] == "import" {
-        let filename = &args[2];
-        let mut reader = csv::Reader::from_path(filename).unwrap();
-        let _pool = create_connection_pool().await;
-        import::import(&_pool, &mut reader).await.unwrap();
+    let pool = create_connection_pool(&config).await;
+    if config.run_migrations {
+        println!("Running migrations");
+        sqlx::migrate!().run(&pool).await.unwrap();
+    }
+
+    if config.load_initial_data_path.is_some() {
+        let has_ts = sqlx::query!("select id from ts limit 1")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+        if has_ts.is_some() {
+            println!("Database already contains data, aborting");
+        } else {
+            println!(
+                "Loading initial data from {}",
+                config.load_initial_data_path.clone().unwrap()
+            );
+            let mut reader =
+                csv::Reader::from_path(config.load_initial_data_path.clone().unwrap()).unwrap();
+            import::import(&pool, &mut reader).await.unwrap();
+        }
+    }
+
+    let args: Vec<String> = args().collect();
+    if args.len() >= 2 && args[1] == "init" {
+        println!("App initialized");
         return;
     }
-    let _pool = create_connection_pool().await;
-    let app = create_router(_pool);
 
+    let app = create_router(pool);
+
+    println!("Listening on port {}", config.port);
     // run it with hyper on localhost:3000
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+    let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 3000);
+    axum::Server::bind(&socket)
         .serve(app.into_make_service())
         .await
         .unwrap();

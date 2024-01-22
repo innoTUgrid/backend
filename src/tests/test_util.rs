@@ -1,3 +1,4 @@
+use crate::app_config::AppConfig;
 use crate::infrastructure::create_connection_pool;
 use crate::infrastructure::create_router;
 
@@ -14,7 +15,7 @@ pub fn get_random_string(size: usize) -> String {
 }
 
 pub async fn get_client() -> TestClient {
-    let pool = create_connection_pool().await;
+    let pool = create_connection_pool(&AppConfig::new()).await;
     let router = create_router(pool);
 
     TestClient::new(router)
