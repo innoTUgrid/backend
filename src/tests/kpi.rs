@@ -29,3 +29,17 @@ async fn test_kpi_autarky() {
     let body: KpiResult = response.json().await;
     assert_eq!((body.value * 10.0).floor(), 4.0);
 }
+
+#[tokio::test]
+async fn test_get_total_consumption() {
+    let client = get_client().await;
+
+    let response = client
+        .get("/v1/kpi/total_consumption/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
+        .send()
+        .await;
+
+    assert!(response.status().is_success());
+    let body: KpiResult = response.json().await;
+    assert_eq!(body.value, 319749.75);
+}

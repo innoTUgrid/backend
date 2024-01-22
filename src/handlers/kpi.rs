@@ -1,3 +1,4 @@
+use crate::error::ApiError;
 use crate::models::Co2Savings;
 use crate::models::KpiResult;
 use crate::models::{
@@ -274,4 +275,46 @@ pub async fn get_consumption(
         kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
+}
+
+pub async fn get_total_consumption(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+    Query(resampling): Query<Resampling>,
+) -> Result<Json<KpiResult>, ApiError> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+    let pg_resampling_interval = resampling.map_interval()?;
+
+    let consumption_record = sqlx::query!(
+        r"
+            select sum(subquery.mean_value) as value from 
+                (select
+                    time_bucket($3::interval, ts.series_timestamp) as bucket,
+                    avg(ts.series_value) as mean_value 
+                from ts
+                    join meta m on ts.meta_id = m.id
+                where 
+                m.identifier = 'total_load' and
+                ts.series_timestamp >= $1 and ts.series_timestamp <= $2
+                group by bucket
+                order by bucket) subquery
+        ",
+        from_timestamp,
+        to_timestamp,
+        pg_resampling_interval,
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let consumption: f64 =
+        consumption_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let kpi_result = KpiResult {
+        value: consumption,
+        name: String::from("total_consumption"),
+        unit: Some(String::from("kwh")),
+        from_timestamp,
+        to_timestamp,
+    };
+    Ok(Json(kpi_result))
 }
