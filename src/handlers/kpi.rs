@@ -2,7 +2,13 @@ use crate::error::ApiError;
 use crate::models::Co2Savings;
 use crate::models::KpiResult;
 use crate::models::{
-    Consumption, ConsumptionByCarrier, ConsumptionWithEmissions, EmissionsByCarrier, Resampling,
+    Consumption,     
+    ConsumptionByCarrier, 
+    ConsumptionWithEmissions,
+    EmissionsByCarrier, 
+    EmissionsBySource,
+    ProductionWithEmissions,
+    Resampling,
     Result,
 };
 
@@ -15,6 +21,9 @@ use rand::Rng;
 use sqlx::{Pool, Postgres};
 use std::string::String;
 
+/*
+
+*/
 pub async fn get_self_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
@@ -181,6 +190,43 @@ pub async fn get_cost_savings(
 }
 
 /*
+return timeseries of scope 1 emissions for each source of production
+*/
+pub async fn get_scope_one_emissions(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    Query(resampling): Query<Resampling>,
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<Vec<EmissionsBySource>>> {
+    let pg_resampling_interval = resampling.map_interval()?;
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let production_record = sqlx::query_file_as!(
+        ProductionWithEmissions,
+        "src/sql/scope_one_emissions.sql",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut kpi_results: Vec<EmissionsBySource> = vec![];
+    let offset = resampling.hours_per_interval()?;
+    for production in production_record {
+        //let kpi_value = production.scope_1_emissions.unwrap_or(0.0) * offset;
+        let kpi_result = EmissionsBySource {
+            bucket: production.bucket.unwrap(),
+            source_name: production.source_of_production,
+            value: production.scope_1_emissions.unwrap_or(0.0) * offset,
+            unit: String::from("kgco2eq"),
+        };
+        kpi_results.push(kpi_result);
+    }
+    Ok(Json(kpi_results))
+}
+
+/*
 calc Scope 2 Emissions for each carrier
 */
 pub async fn get_scope_two_emissions(
@@ -220,11 +266,15 @@ pub async fn get_scope_two_emissions(
     Ok(Json(kpi_results))
 }
 
+/*
+return consumption for each carrier as timeseries in kwh
+*/
 pub async fn get_consumption(
     State(pool): State<Pool<Postgres>>,
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
 ) -> Result<Json<Vec<ConsumptionByCarrier>>> {
+    let offset = resampling.hours_per_interval()?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -252,7 +302,8 @@ pub async fn get_consumption(
     // TODO: not very pretty, duplicate iteration is a code smell imo
     for consumption in grid_consumption_records {
         let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0);
+            * consumption.bucket_consumption.unwrap_or(0.0)
+            * offset;
         let kpi_result = ConsumptionByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,
@@ -264,7 +315,8 @@ pub async fn get_consumption(
     }
     for consumption in local_consumption_records {
         let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0);
+            * consumption.bucket_consumption.unwrap_or(0.0)
+            * offset;
         let kpi_result = ConsumptionByCarrier {
             bucket: consumption.bucket.unwrap(),
             value: kpi_value,

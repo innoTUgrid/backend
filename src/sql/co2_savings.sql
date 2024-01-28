@@ -6,13 +6,12 @@
 -- TODO: missing energy carrier for combined heating and power?
 select
     total_local_production.bucket as bucket,
+    -- average since there are multiple buckets for every carrier 
     avg(total_local_production.production * total_local_production.production_emission_factor) as local_emissions,
     sum(production * carrier_proportion * emission_factor) as hypothetical_emissions,
     total_local_production.production_unit as production_unit,
     total_local_production.emission_factor_unit as local_emission_factor_unit,
     grid_proportions.emission_factor_unit as grid_emission_factor_unit
-
-
 from (
         -- compute the local energy production
         select
@@ -58,6 +57,7 @@ from (
                     join energy_carrier on meta.carrier = energy_carrier.id
                 where
                     meta.consumption = true and
+                    -- exclude carrier of type 'electricity' since it is already included in total_load
                     energy_carrier.name != 'electricity' and
                     ts.series_timestamp between $2 and $3
                 group by

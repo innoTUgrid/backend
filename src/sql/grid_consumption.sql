@@ -21,8 +21,8 @@ from
                     time_bucket($1::interval, ts.series_timestamp) as inner_bucket,
                     sum(series_value) as total_sum
                 from ts
-                        join meta on ts.meta_id = meta.id
-                        join energy_carrier on meta.carrier = energy_carrier.id
+                    join meta on ts.meta_id = meta.id
+                    join energy_carrier on meta.carrier = energy_carrier.id
                 where
                     meta.consumption = true and
                     energy_carrier.name != 'electricity' and

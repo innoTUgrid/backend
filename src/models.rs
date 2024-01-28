@@ -246,16 +246,16 @@ impl Resampling {
         let caps = re
             .captures(&self.interval)
             .ok_or_else(|| anyhow!("Invalid interval format"))?;
-        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<i32>()?;
+        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<f64>()?;
         let unit_part = caps.get(2).map_or("", |m| m.as_str());
 
         let hours_per_period = match unit_part {
-            "min" => num_part as f64 / 60.0,
-            "hour" => num_part as f64,
-            "day" => (num_part as f64) * 24.0,
-            "week" => num_part as f64 * 24.0 * 7.0,
-            "month" => num_part as f64 * 24.0 * 30.0, // approximately
-            "year" => num_part as f64 * 24.0 * 365.0, // approximately
+            "min" => num_part / 60.0,
+            "hour" => num_part,
+            "day" => num_part * 24.0,
+            "week" => num_part * 24.0 * 7.0,
+            "month" => num_part * 24.0 * 30.0, // approximately
+            "year" => num_part * 24.0 * 365.0, // approximately
             _ => return Err(anyhow!("invalid interval format")),
         };
 
@@ -319,6 +319,17 @@ pub struct Consumption {
     pub carrier_name: String,
 }
 
+// struct to hold intermediate results for Scope 1 emissions kpi
+pub struct ProductionWithEmissions {
+    pub bucket: Option<OffsetDateTime>,
+    pub source_of_production: String,
+    pub production_carrier: String,
+    pub production: Option<f64>,
+    pub production_unit: String,
+    pub scope_1_emissions: Option<f64>,
+    pub emission_factor_unit: String,
+}
+
 // struct to hold intermediate results for scope two emission kpi
 pub struct ConsumptionWithEmissions {
     pub bucket: Option<OffsetDateTime>,
@@ -339,6 +350,16 @@ pub struct KpiResult {
     pub from_timestamp: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub to_timestamp: OffsetDateTime,
+}
+
+// hold co2 emissions by source of production
+#[derive(Debug, Serialize)]
+pub struct EmissionsBySource {
+    #[serde(with = "time::serde::rfc3339")]
+    pub bucket: OffsetDateTime,
+    pub source_name: String,
+    pub value: f64,
+    pub unit: String,
 }
 
 #[derive(Debug, Serialize)]

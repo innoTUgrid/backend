@@ -2,7 +2,7 @@ use crate::app_config::AppConfig;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
 use crate::handlers::kpi::{
-    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions,
+    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions, get_scope_one_emissions,
     get_self_consumption, get_total_consumption,
 };
 use crate::handlers::meta::{add_meta, get_meta_by_identifier, read_meta};
@@ -49,6 +49,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/config/", get(get_config))
         .route("/v1/kpi/consumption/", get(get_consumption))
         .route("/v1/kpi/total_consumption/", get(get_total_consumption))
+        .route("/v1/kpi/scope_one_emissions/", get(get_scope_one_emissions))
         .route("/v1/kpi/scope_two_emissions/", get(get_scope_two_emissions))
         .route("/v1/kpi/self_consumption/", get(get_self_consumption))
         .route("/v1/kpi/autarky/", get(get_autarky))

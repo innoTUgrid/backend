@@ -252,6 +252,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/KpiResult'
 
+  /v1/kpi/scope_one_emissions/:
+    get:
+      tags:
+        - kpi
+      summary: Get Scope One Emissions
+      description: Returns a timeseries of scope 2 emissions data for each source of production
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: true
+          description: The interval for resampling (e.g., '1hour', '30min').
+      responses:
+        '200':
+          description: Successfully retrieved scope one emissions data.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScopeTwoEmissions'
+
   /v1/kpi/scope_two_emissions/:
     get:
       tags:
@@ -461,6 +498,20 @@ components:
         - carrier_name
         - value
         - unit
+
+    ScopeOneEmissions:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+        source_name:
+          type: string
+        value:
+          type: number
+          format: double        
+        unit:
+          type: string
 
     ScopeTwoEmissions:
       type: object
