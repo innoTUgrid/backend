@@ -39,21 +39,21 @@ paths:
       tags:
         - ts
       summary: Get timeseries by identifier
-      description: Retrieves all timeseries data points for a given identifier.
+      description: Returns all timeseries data for a specific energy source (meta.identifier).
       parameters:
         - in: path
           name: identifier
           required: true
           schema:
             type: string
-          description: The identifier of the timeseries retrieved by calling `/v1/meta/` (e.g. <total_load>)
+          description: The identifier of the energy source retrieved by calling `/v1/meta/` (e.g. 'total_load')
         - in: query
           name: from
           schema:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
         - in: query
           name: to
           schema:
@@ -74,14 +74,14 @@ paths:
       tags:
         - ts
       summary: Resample timeseries data
-      description: Returns resampled timeseries data based on the provided interval.
+      description: Returns resampled timeseries for a specific energy source (meta.identifier) data based on the provided interval.
       parameters:
         - in: path
           name: identifier
           required: true
           schema:
             type: string
-          description: The identifier of the timeseries to resample.
+          description: The identifier of the energy source to resample (e.g. 'production_of_pv').
         - in: query
           name: interval
           schema:
@@ -94,7 +94,7 @@ paths:
             type: string
             format: date-time
           required: false
-          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
         - in: query
           name: to
           schema:
@@ -162,7 +162,7 @@ paths:
       tags:
         - kpi
       summary: Get Consumption Data
-      description: Retrieves consumption data based on timestamp filters and resampling parameters.
+      description: Return timeseries of consumption for each carrier in kwh
       parameters:
         - in: query
           name: from
@@ -192,14 +192,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/KpiResultByCarrier'
+                  $ref: '#/components/schemas/ConsumptionByCarrier'
         
   /v1/kpi/self_consumption/:
     get:
       tags:
         - kpi
       summary: Get self-consumption KPI
-      description: Retrieves the self-consumption KPI based on provided timestamps.
+      description: Returns the self consumption (energy consumed / energy produced) for the period specified.
       parameters:
         - in: query
           name: from
@@ -227,8 +227,8 @@ paths:
     get:
       tags:
         - kpi
-      summary: Get Consumption Data
-      description: Retrieves consumption data based on timestamp filters and resampling parameters.
+      summary: Return Total Consumption of external energy
+      description: Returns the sum of all energy consumed from external sources for the time period specified 
       parameters:
         - in: query
           name: from
@@ -258,14 +258,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/KpiResultByCarrier'
+                  $ref: '#/components/schemas/KpiResult'
                   
   /v1/kpi/autarky/:
     get:
       tags:
         - kpi
       summary: Get Autarky KPI
-      description: Retrieves the autarky key performance indicator.
+      description: Returns the autarky (energy produced locally / energy consumed from external sources) key performance indicator.
       parameters:
         - in: query
           name: from
@@ -294,7 +294,7 @@ paths:
       tags:
         - kpi
       summary: get cost savings
-      description: Returns the savings 
+      description: Returns the savings in EUR 
       parameters:
         - in: query
           name: from
@@ -312,7 +312,7 @@ paths:
           description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
-          description: Successfully retrieved the autarky KPI.
+          description: Successfully retrieved the cost savings KPI.
           content:
             application/json:
               schema:
@@ -322,8 +322,8 @@ paths:
     get:
       tags:
         - kpi
-      summary: get cost savings
-      description: Returns the savings 
+      summary: get CO2 savings
+      description: Returns the savings in kgco2eq
       parameters:
         - in: query
           name: from
@@ -341,7 +341,7 @@ paths:
           description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
       responses:
         '200':
-          description: Successfully retrieved the autarky KPI.
+          description: Successfully retrieved the CO2 savings KPI.
           content:
             application/json:
               schema:
@@ -352,7 +352,7 @@ paths:
       tags:
         - kpi
       summary: Get Scope One Emissions
-      description: Returns a timeseries of scope 2 emissions data for each source of production
+      description: Returns a timeseries of scope 1 emissions data for each local energy producer for the period specified.
       parameters:
         - in: query
           name: from
@@ -389,7 +389,7 @@ paths:
       tags:
         - kpi
       summary: Get Scope Two Emissions
-      description: Retrieves the scope two emissions data, resampled over a specified interval.
+      description: Returns a timeseries of scope 2 emissions data for each external energy source for the period specified.
       parameters:
         - in: query
           name: from
@@ -466,13 +466,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/MetaOutput'
 
-#/v1/meta/{identifier}/:
-#  get:
-#    tags:
-#      - meta
-#    summary: get_meta_by_identifier
-#    description:
-#    parameters:
+  /v1/meta/{identifier}/:
+    get:
+      tags:
+        - meta
+      summary: get_meta_by_identifier
+      description: Return information on a energy source by its identifier
+      parameters:
+        - in: path
+          name: identifier
+          required: true
+          schema:
+            type: string          
+          description: Name of referenced source of energy
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaOutput'
 
 # #
 # define components
@@ -582,7 +595,7 @@ components:
           type: string
           format: date-time
           
-    KpiResultByCarrier:
+    ConsumptionByCarrier:
       type: object
       properties:
         bucket:
@@ -599,6 +612,9 @@ components:
         unit:
           type: string
           description: The unit of measurement for the value, typically "kwh".
+        local:
+          type: boolean
+          description: Indicates if energy is of type production or consumption
       required:
         - bucket
         - carrier_name
@@ -611,11 +627,13 @@ components:
         bucket:
           type: string
           format: date-time
+          description: timestamp of value
         source_name:
           type: string
+          description: name of the local energy producer
         value:
           type: number
-          format: double        
+          format: double          
         unit:
           type: string
 
@@ -625,11 +643,13 @@ components:
         bucket:
           type: string
           format: date-time
+          description: timestamp of value
         value:
           type: number
           format: double
         carrier_name:
           type: string
+          description: name of the external energy carrier
         unit:
           type: string
 
