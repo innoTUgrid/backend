@@ -30,7 +30,7 @@ tags:
   - name: meta
     description: meta information about timeseries values
   - name: kpi
-    description: scope 1 & 2 calculations
+    description: scope 1 & 2 factors, autarky, cost savings, consumption
 
 paths:
   
@@ -156,7 +156,44 @@ paths:
                 properties:
                   message:
                     type: string
-
+  
+  /v1/kpi/consumption:
+    get:
+      tags:
+        - kpi
+      summary: Get Consumption Data
+      description: Retrieves consumption data based on timestamp filters and resampling parameters.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: false
+          description: The resampling interval (e.g., "1hour", "30min").
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KpiResultByCarrier'
+        
   /v1/kpi/self_consumption/:
     get:
       tags:
@@ -185,43 +222,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KpiResult'
-  
-  #/v1/consumption:
-  #  get:
-  #    tags:
-  #      - kpi
-  #    summary: Get Consumption Data
-  #    description: Retrieves consumption data based on timestamp filters and resampling parameters.
-  #    parameters:
-  #      - in: query
-  #        name: from
-  #        schema:
-  #          type: string
-  #          format: date-time
-  #        required: false
-  #        description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
-  #      - in: query
-  #        name: to
-  #        schema:
-  #          type: string
-  #          format: date-time
-  #        required: false
-  #        description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
-  #      - in: query
-  #        name: interval
-  #        schema:
-  #          type: string
-  #        required: false
-  #        description: The resampling interval (e.g., "1hour", "30min").
-  #    responses:
-  #      '200':
-  #        description: Successful response
-  #        content:
-  #          application/json:
-  #            schema:
-  #              type: array
-  #              items:
-  #                $ref: '#/components/schemas/KpiResultByCarrier'
+
+  /v1/kpi/total_consumption:
+    get:
+      tags:
+        - kpi
+      summary: Get Consumption Data
+      description: Retrieves consumption data based on timestamp filters and resampling parameters.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: false
+          description: The resampling interval (e.g., "1hour", "30min").
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KpiResultByCarrier'
                   
   /v1/kpi/autarky/:
     get:
@@ -229,6 +266,64 @@ paths:
         - kpi
       summary: Get Autarky KPI
       description: Retrieves the autarky key performance indicator.
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+      responses:
+        '200':
+          description: Successfully retrieved the autarky KPI.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiResult'
+
+  /v1/kpi/cost_savings:
+    get:
+      tags:
+        - kpi
+      summary: get cost savings
+      description: Returns the savings 
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: Start timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: End timestamp for filtering in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+      responses:
+        '200':
+          description: Successfully retrieved the autarky KPI.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiResult'
+
+  /v1/kpi/co2_savings:
+    get:
+      tags:
+        - kpi
+      summary: get cost savings
+      description: Returns the savings 
       parameters:
         - in: query
           name: from
@@ -287,7 +382,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ScopeTwoEmissions'
+                  $ref: '#/components/schemas/ScopeOneEmissions'
 
   /v1/kpi/scope_two_emissions/:
     get:
@@ -371,6 +466,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/MetaOutput'
 
+#/v1/meta/{identifier}/:
+#  get:
+#    tags:
+#      - meta
+#    summary: get_meta_by_identifier
+#    description:
+#    parameters:
+
+# #
+# define components
+# #
 components:
   schemas:
     
