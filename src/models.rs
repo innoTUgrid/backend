@@ -57,6 +57,7 @@ pub struct TimeseriesMeta {
     pub unit: String,
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
+    pub description: Option<String>,
 }
 
 #[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
@@ -155,6 +156,7 @@ pub struct MetaInput {
     pub unit: String,
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
+    pub description: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MetaOutput {
@@ -163,6 +165,7 @@ pub struct MetaOutput {
     pub unit: String,
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
+    pub description: Option<String>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub min_timestamp: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]

@@ -21,7 +21,7 @@ pub async fn resample_timeseries_by_identifier(
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"
-        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description
         from meta join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
         identifier,
@@ -74,7 +74,7 @@ pub async fn get_timeseries_by_identifier(
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"
-        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description
         from meta join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
         identifier,
@@ -122,7 +122,7 @@ pub async fn add_timeseries(
     let metadatas = sqlx::query_as!(
         TimeseriesMeta,
         r#"
-        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption
+        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description
         from meta join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier IN (select * from unnest($1::text[]))"#,
         &identifiers,

@@ -49,19 +49,21 @@ pub async fn import<T: std::io::Read>(
             unit: unit.to_lowercase(),
             carrier: Some(carrier.to_string()),
             consumption: Some(!name.to_lowercase().contains("production")),
+            description: Some("description".to_string()),
         };
         let mut meta_output: Result<TimeseriesMeta, sqlx::Error> = sqlx::query_as!(
             TimeseriesMeta,
             r"
-                insert into meta (identifier, unit, carrier, consumption)
-                select $1, $2, energy_carrier.id, $4
+                insert into meta (identifier, unit, carrier, consumption, description)
+                select $1, $2, energy_carrier.id, $4, $5
                 from energy_carrier
                 where energy_carrier.name = $3
-                returning id, identifier, unit, $3 as carrier, consumption",
+                returning id, identifier, unit, $3 as carrier, consumption, description",
             &meta_input.identifier,
             &meta_input.unit,
             meta_input.carrier.unwrap(),
             meta_input.consumption.unwrap(),
+            meta_input.description.unwrap(),
         )
         .fetch_one(pool)
         .await;
@@ -70,7 +72,7 @@ pub async fn import<T: std::io::Read>(
             meta_output = sqlx::query_as!(
                 TimeseriesMeta,
                 r"
-                    select meta.id, identifier, unit, energy_carrier.name as carrier, consumption
+                    select meta.id, identifier, unit, energy_carrier.name as carrier, consumption, description
                     from meta
                     inner join energy_carrier on energy_carrier.id = meta.carrier
                     where identifier = $1 and unit = $2

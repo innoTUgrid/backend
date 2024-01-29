@@ -21,6 +21,7 @@ pub async fn read_meta(
             meta.identifier as identifier,
             meta.unit as unit,
             meta.consumption as consumption,
+            meta.description as description,
             energy_carrier.name as carrier,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
@@ -45,9 +46,10 @@ pub async fn read_meta(
             identifier: row.get(1),
             unit: row.get(2),
             consumption: row.get(3),
-            carrier: row.get(4),
-            min_timestamp: row.get(5),
-            max_timestamp: row.get(6),
+            description: row.get(4),
+            carrier: row.get(5),
+            min_timestamp: row.get(6),
+            max_timestamp: row.get(7),
         };
         json_values.push(meta_value);
     }
@@ -69,6 +71,7 @@ pub async fn get_meta_by_identifier(
             meta.identifier as identifier,
             meta.unit as unit,
             meta.consumption as consumption,
+            meta.description as description,
             energy_carrier.name as carrier,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
@@ -100,7 +103,7 @@ pub async fn add_meta(
     let meta_output: MetaOutput = sqlx::query_as!(
         MetaOutput,
         r"
-        insert into meta (identifier, unit, carrier)
+        insert into meta (identifier, unit, carrier, consumption, description)
         select
             $1,
             $2,
@@ -108,18 +111,23 @@ pub async fn add_meta(
                 when $3::text is not null then
                     (select energy_carrier.id from energy_carrier where energy_carrier.name = $3)
                 else null
-            end
+            end,
+            $4,
+            $5
         returning
             id,
             identifier,
             unit,
             consumption,
+            description,
             $3 as carrier,
             null::timestamptz as min_timestamp,
             null::timestamptz as max_timestamp",
         &meta.identifier,
         &meta.unit,
         meta.carrier.as_deref(),
+        meta.consumption,
+        meta.description,
     )
     .fetch_one(&pool)
     .await?;
