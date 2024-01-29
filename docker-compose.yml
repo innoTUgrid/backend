@@ -17,6 +17,7 @@ services:
       - db
     environment:
       DATABASE_URL: postgres://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB_NAME}
+      LOG_LEVEL: debug
     
   db:
     container_name: timescaledb

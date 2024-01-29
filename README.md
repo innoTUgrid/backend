@@ -13,6 +13,20 @@ The backend consists of multiple independent services each providing different f
 3. ... otherwise simply do:
 `docker compose up`
 
+### how to run this code (docker)
+
+Pull our prebuilt image from ghcr.io: 
+```bash
+docker compose pull
+```
+
+Run the containers:
+```bash
+docker compose up -d
+```
+
+
+
 #### **drop database** e.g. in case initial data has been updated and needs to reinitialize (see step 2. above)
 1. check if container hosting the database is running
 `docker ps`
