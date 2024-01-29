@@ -20,6 +20,7 @@ pub async fn read_meta(
             meta.id as id,
             meta.identifier as identifier,
             meta.unit as unit,
+            meta.consumption as consumption,
             energy_carrier.name as carrier,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
@@ -43,9 +44,10 @@ pub async fn read_meta(
             id: row.get(0),
             identifier: row.get(1),
             unit: row.get(2),
-            carrier: row.get(3),
-            min_timestamp: row.get(4),
-            max_timestamp: row.get(5),
+            consumption: row.get(3),
+            carrier: row.get(4),
+            min_timestamp: row.get(5),
+            max_timestamp: row.get(6),
         };
         json_values.push(meta_value);
     }
@@ -66,6 +68,7 @@ pub async fn get_meta_by_identifier(
             meta.id as id,
             meta.identifier as identifier,
             meta.unit as unit,
+            meta.consumption as consumption,
             energy_carrier.name as carrier,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
@@ -110,6 +113,7 @@ pub async fn add_meta(
             id,
             identifier,
             unit,
+            consumption,
             $3 as carrier,
             null::timestamptz as min_timestamp,
             null::timestamptz as max_timestamp",

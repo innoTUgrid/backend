@@ -162,6 +162,7 @@ pub struct MetaOutput {
     pub identifier: String,
     pub unit: String,
     pub carrier: Option<String>,
+    pub consumption: Option<bool>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub min_timestamp: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]
