@@ -1,4 +1,4 @@
-use crate::models::{EmissionFactor};
+use crate::models::EmissionFactor;
 use crate::tests::test_util::get_client;
 
 #[tokio::test]
