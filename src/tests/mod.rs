@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub mod config;
 #[cfg(test)]
+pub mod emission_factor;
+#[cfg(test)]
 pub mod kpi;
 #[cfg(test)]
 pub mod meta;

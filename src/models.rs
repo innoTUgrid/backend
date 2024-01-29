@@ -356,6 +356,16 @@ pub struct KpiResult {
     pub to_timestamp: OffsetDateTime,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmissionFactor {
+    pub id: i32,
+    pub carrier: String,
+    pub factor: f64,
+    pub unit: String,
+    pub source: String,
+    pub source_url: Option<String>,
+}
+
 // hold co2 emissions by source of production
 #[derive(Debug, Serialize)]
 pub struct EmissionsBySource {
