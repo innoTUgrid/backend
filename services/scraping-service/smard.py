@@ -54,10 +54,41 @@ class SmardScraper(Scraper):
         return self
 
     def check_if_series_exists(self):
-        pass
+        response = requests.get(
+            self.DATA_SERVICE_META_ENDPOINT + self.SMARD_IDENTIFIER
+        )
+        return response.status_code == 200
 
     def write(self):
-        pass
+        if not self.check_if_series_exists():
+            response = requests.post(
+                self.DATA_SERVICE_META_ENDPOINT,
+                json={
+                    "identifier": self.SMARD_IDENTIFIER,
+                    "unit": self.SMARD_UNIT
+                },
+            )
+            print(response)
+            if response.status_code == 200:
+                print("Successfully created series in data service")
+            else:
+                print("Failed to create series in data service")
+        data_json = [
+            {
+                "identifier": self.SMARD_IDENTIFIER,
+                "timestamp": datapoint[0],
+                "value": datapoint[1]
+            }
+            for datapoint in self.datapoints
+        ]
+        response = requests.post(
+            self.DATA_SERVICE_TS_ENDPOINT,
+            json={"timeseries": data_json}
+        )
+        if response.status_code == 200:
+            print("Successfully wrote data to data service")
+        else:
+            print("Failed to write data to data service")
 
 
 if __name__ == "__main__":
@@ -67,3 +98,4 @@ if __name__ == "__main__":
         test_start,
         test_end
     )
+    scraper.write()
