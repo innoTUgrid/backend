@@ -2,8 +2,8 @@ use crate::app_config::AppConfig;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
 use crate::handlers::kpi::{
-    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_two_emissions, get_scope_one_emissions,
-    get_self_consumption, get_total_consumption,
+    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_one_emissions,
+    get_scope_two_emissions, get_self_consumption, get_total_consumption,
 };
 use crate::handlers::meta::{add_meta, get_meta_by_identifier, read_meta};
 use crate::handlers::timeseries::{

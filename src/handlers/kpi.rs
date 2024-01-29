@@ -2,14 +2,8 @@ use crate::error::ApiError;
 use crate::models::Co2Savings;
 use crate::models::KpiResult;
 use crate::models::{
-    Consumption,     
-    ConsumptionByCarrier, 
-    ConsumptionWithEmissions,
-    EmissionsByCarrier, 
-    EmissionsBySource,
-    ProductionWithEmissions,
-    Resampling,
-    Result,
+    Consumption, ConsumptionByCarrier, ConsumptionWithEmissions, EmissionsByCarrier,
+    EmissionsBySource, ProductionWithEmissions, Resampling, Result,
 };
 
 use crate::models::TimestampFilter;
