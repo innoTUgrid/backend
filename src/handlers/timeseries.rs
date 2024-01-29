@@ -148,6 +148,7 @@ pub async fn add_timeseries(
     .fetch_all(&pool)
     .await?;
 
+
     let entries = req
         .timeseries
         .iter()
