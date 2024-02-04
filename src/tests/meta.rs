@@ -1,3 +1,4 @@
+use reqwest::get;
 use crate::models::{MetaInput, MetaOutput, MetaRows};
 
 use crate::tests::test_util::add_meta;
