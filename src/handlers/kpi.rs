@@ -172,6 +172,51 @@ pub async fn get_total_consumption(
     Ok(Json(kpi_result))
 }
 
+pub async fn get_total_production(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+    Query(resampling): Query<Resampling>,
+) -> Result<Json<KpiResult>, ApiError> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+    let pg_resampling_interval = resampling.map_interval()?;
+
+    let production_record = sqlx::query!(
+        r"
+            select 
+                sum(subquery.sum_production) as value 
+            from (
+                select
+                    time_bucket($1::interval, ts.series_timestamp) as bucket,
+                    sum(ts.series_value) as sum_production 
+                from ts
+                    join meta m on ts.meta_id = m.id
+                where 
+                    m.consumption = false 
+                    and
+                    ts.series_timestamp between $2 and $3
+                group by bucket
+                order by bucket
+            ) subquery
+        ",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp,        
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let production: f64 = production_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let kpi_result = KpiResult {
+        value: production,
+        name: String::from("total_production"),
+        unit: Some(String::from("kwh")),
+        from_timestamp,
+        to_timestamp,
+    };
+    Ok(Json(kpi_result))
+}
+
 pub async fn get_autarky(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
