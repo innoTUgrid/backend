@@ -65,8 +65,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
             "/v1/ts/:identifier/resample/",
             get(resample_timeseries_by_identifier),
         )
-        .route("/v1/emission_factor/", get(get_emission_factor))
-        .route("/v1/emission_factor/", post(add_emission_factor))
+        .route("/v1/emission_factors/", get(get_emission_factor))
+        .route("/v1/emission_factors/", post(add_emission_factor))
         .fallback(get(fallback_handler))
         .layer(cors)
         // limit file size to 10MB
