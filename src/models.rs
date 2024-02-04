@@ -198,7 +198,7 @@ pub struct EmissionFactorFilter {
     pub carrier: Option<String>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct EmissionFactor {
     pub id: i32,
     pub carrier: String,
