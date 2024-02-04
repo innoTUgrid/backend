@@ -63,8 +63,9 @@ pub async fn get_meta_by_identifier(
     State(pool): State<Pool<Postgres>>,
     Path(identifier): Path<String>,
 ) -> Result<Json<MetaOutput>, ApiError> {
-    let maybe_meta = sqlx::query_as!(
-        MetaOutput,
+    /// NOTE: using a compile time checked query va query_as! results in a nullability error for the carrier field
+    /// Might have something to do with https://github.com/launchbadge/sqlx/issues/1852
+    let meta_output= sqlx::query_as::<_, MetaOutput>(
         r"
         select
             meta.id as id,
@@ -86,14 +87,11 @@ pub async fn get_meta_by_identifier(
         order by
             id
             ",
-        identifier
     )
-    .fetch_optional(&pool)
+    .bind(identifier)
+    .fetch_one(&pool)
     .await?;
-    match maybe_meta {
-        Some(meta_output) => Ok(Json(meta_output)),
-        None => Err(ApiError::NotFound),
-    }
+    Ok(Json(meta_output))
 }
 
 pub async fn add_meta(
@@ -121,6 +119,7 @@ pub async fn add_meta(
             consumption,
             description,
             $3 as carrier,
+            $4 as consumption,
             null::timestamptz as min_timestamp,
             null::timestamptz as max_timestamp",
         &meta.identifier,
