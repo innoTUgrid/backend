@@ -137,7 +137,8 @@ pub async fn add_timeseries(
         .collect::<Vec<_>>();
     identifiers.dedup();
 
-    let metadatas = sqlx::query_as!(
+
+    let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"
         select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description
@@ -152,15 +153,9 @@ pub async fn add_timeseries(
     let entries = req
         .timeseries
         .iter()
-        .map(|x| {
-            (
-                x.timestamp,
-                x.value,
-                metadatas
-                    .iter()
-                    .find(|m| m.identifier == x.identifier)
-                    .unwrap(),
-            )
+        .filter_map(|x| {
+            let meta = metadata.iter().find(|m| m.identifier == x.identifier);
+            meta.map(|m| (x.timestamp, x.value, m))
         })
         .collect::<Vec<_>>();
 
@@ -178,6 +173,5 @@ pub async fn add_timeseries(
     )
     .fetch_all(&pool)
     .await?;
-
     Ok(Json(TimeseriesBody { timeseries }))
 }
