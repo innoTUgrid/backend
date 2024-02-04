@@ -401,16 +401,6 @@ pub struct KpiResult {
     pub to_timestamp: OffsetDateTime,
 }
 
-// hold co2 emissions by source of production
-#[derive(Debug, Serialize)]
-pub struct EmissionsBySource {
-    #[serde(with = "time::serde::rfc3339")]
-    pub bucket: OffsetDateTime,
-    pub source_name: String,
-    pub value: f64,
-    pub unit: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct EmissionsByCarrier {
     #[serde(with = "time::serde::rfc3339")]

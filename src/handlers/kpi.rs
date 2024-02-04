@@ -3,7 +3,7 @@ use crate::models::Co2Savings;
 use crate::models::KpiResult;
 use crate::models::{
     Consumption, ConsumptionByCarrier, ConsumptionWithEmissions, EmissionsByCarrier,
-    EmissionsBySource, ProductionWithEmissions, Resampling, Result,
+    ProductionWithEmissions, Resampling, Result,
 };
 
 use crate::models::TimestampFilter;
@@ -291,7 +291,7 @@ pub async fn get_scope_one_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
-) -> Result<Json<Vec<EmissionsBySource>>> {
+) -> Result<Json<Vec<EmissionsByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -306,12 +306,12 @@ pub async fn get_scope_one_emissions(
     .fetch_all(&pool)
     .await?;
 
-    let mut kpi_results: Vec<EmissionsBySource> = vec![];
+    let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     let offset = resampling.hours_per_interval()?;
     for production in production_record {
-        let kpi_result = EmissionsBySource {
+        let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
-            source_name: production.source_of_production,
+            carrier_name: production.production_carrier,
             value: production.scope_1_emissions.unwrap_or(0.0) * offset,
             unit: String::from("kgco2eq"),
         };
