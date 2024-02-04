@@ -29,6 +29,9 @@ pub async fn resample_timeseries_by_identifier(
     .fetch_one(&pool)
     .await?;
 
+    // TODO: this is a hack, we asume that all time based series are ending with h
+    let is_time_based_ts = metadata.unit.ends_with("h");
+
     let timestamp_from = timestamp_filter.from.unwrap();
     let timestamp_to = timestamp_filter.to.unwrap();
 
@@ -37,7 +40,10 @@ pub async fn resample_timeseries_by_identifier(
         r#"
         select
             time_bucket($2::interval, ts.series_timestamp) as bucket,
-            avg(ts.series_value) as mean_value 
+            case
+                when $6 then sum(ts.series_value)
+                else avg(ts.series_value) * $5
+            end as mean_value
         from ts
         where ts.meta_id = $1
         and ts.series_timestamp >= $3
@@ -48,14 +54,22 @@ pub async fn resample_timeseries_by_identifier(
         metadata.id,
         pg_resampling_interval,
         timestamp_from,
-        timestamp_to
+        timestamp_to,
+        if is_time_based_ts { resampling.hours_per_interval()? } else { 1.0 },
+        is_time_based_ts,
     )
     .fetch_all(&pool)
     .await?;
 
+    let mut new_metadata = metadata.clone();
+    if !is_time_based_ts {
+        // TODO: this is a hack, we should have a proper unit conversion
+        new_metadata.unit = new_metadata.unit + "h";
+    }
+
     let response = ResampledTimeseries {
         datapoints,
-        meta: metadata,
+        meta: new_metadata,
     };
     Ok(Json(response))
 }
