@@ -1,0 +1,1 @@
+alter table ts add constraint unique_meta_id_series_timestamp unique (meta_id, series_timestamp);
