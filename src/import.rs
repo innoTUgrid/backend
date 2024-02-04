@@ -138,9 +138,7 @@ mod tests {
                 },
             ],
         };
-        let mock_csv = r"
-id,Time,Production,Consumption
-1,2020-01-01 00:00:00+00:00,1.0,2.0";
+        let mock_csv = r"id,Time,Production,Consumption,2023-01-01 00:00:00+00:00,1.0,2.0";
         let mut reader = Reader::from_reader(mock_csv.as_bytes());
         import(&pool, &mut reader, &import_config).await.unwrap();
     }
