@@ -1,6 +1,6 @@
 use crate::error::ApiError;
 
-use crate::models::{MetaInput, NewDatapoint, TimeseriesMeta};
+use crate::models::{ImportConfig, MetaInput, NewDatapoint, TimeseriesMeta};
 
 use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
@@ -8,49 +8,35 @@ use time::OffsetDateTime;
 pub async fn import<T: std::io::Read>(
     pool: &Pool<Postgres>,
     reader: &mut csv::Reader<T>,
+    import_config: &ImportConfig,
 ) -> Result<(), ApiError> {
     let records = reader.records().collect::<Vec<_>>();
     let headers = reader.headers()?.iter().enumerate().collect::<Vec<_>>();
 
     let time_header = headers
         .iter()
-        .find(|(_, header)| header == &"Time")
+        .find(|(_, header)| header == &import_config.time_column)
         .unwrap()
         .to_owned();
 
-    for (i, header) in headers {
-        // look for headers like "Production#electricity_kW"
-        let split = header.rsplitn(2, '#').collect::<Vec<_>>();
-        if split.len() != 2 {
-            continue;
-        }
+    let mapped_meta_input: Vec<(&MetaInput, usize)> = import_config
+        .timeseries
+        .iter()
+        .map(|x| {
+            (
+                x,
+                headers
+                    .iter()
+                    .find(|(_, header)| header == &x.identifier)
+                    .unwrap_or_else(|| {
+                        panic!("referenced column '{}' not found in csv file", x.identifier)
+                    })
+                    .0,
+            )
+        })
+        .collect();
 
-        let name = split[1];
-        let carrier_and_unit = split[0];
-        let split = carrier_and_unit.rsplitn(2, '_').collect::<Vec<_>>();
-        if split.len() != 2 {
-            continue;
-        }
-        let unit = split[0];
-        let carrier = split[1];
-
-        sqlx::query!("select name from energy_carrier where name = $1", carrier)
-            .fetch_one(pool)
-            .await
-            .map_err(|_| {
-                ApiError::Anyhow(anyhow::Error::msg(format!(
-                    "Carrier '{}' not found",
-                    carrier
-                )))
-            })?;
-
-        let meta_input = MetaInput {
-            identifier: name.to_lowercase(),
-            unit: unit.to_lowercase(),
-            carrier: Some(carrier.to_string()),
-            consumption: Some(!name.to_lowercase().contains("production")),
-            description: Some("description".to_string()),
-        };
+    for (meta_input, i) in mapped_meta_input {
         let mut meta_output: Result<TimeseriesMeta, sqlx::Error> = sqlx::query_as!(
             TimeseriesMeta,
             r"
@@ -59,11 +45,11 @@ pub async fn import<T: std::io::Read>(
                 from energy_carrier
                 where energy_carrier.name = $3
                 returning id, identifier, unit, $3 as carrier, consumption, description",
-            &meta_input.identifier,
-            &meta_input.unit,
-            meta_input.carrier.unwrap(),
+            &meta_input.identifier.to_lowercase(),
+            &meta_input.unit.to_lowercase(),
+            meta_input.carrier.as_deref().unwrap(),
             meta_input.consumption.unwrap(),
-            meta_input.description.unwrap(),
+            meta_input.description.as_deref().unwrap(),
         )
         .fetch_one(pool)
         .await;
@@ -77,8 +63,8 @@ pub async fn import<T: std::io::Read>(
                     inner join energy_carrier on energy_carrier.id = meta.carrier
                     where identifier = $1 and unit = $2
                     ",
-                &meta_input.identifier,
-                &meta_input.unit,
+                &meta_input.identifier.to_lowercase(),
+                &meta_input.unit.to_lowercase(),
             )
             .fetch_one(pool)
             .await;
@@ -126,16 +112,36 @@ pub async fn import<T: std::io::Read>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{app_config::AppConfig, infrastructure::create_connection_pool};
+    use crate::{app_config::AppConfig, infrastructure::create_connection_pool, models::MetaInput};
     use csv::Reader;
 
     #[tokio::test]
     async fn test_import() {
         let pool = create_connection_pool(&AppConfig::new()).await;
+        let import_config = ImportConfig {
+            file: Some("test.csv".to_string()),
+            time_column: "Time".to_string(),
+            timeseries: vec![
+                MetaInput {
+                    identifier: "Production".to_string(),
+                    unit: "kW".to_string(),
+                    carrier: Some("electricity".to_string()),
+                    consumption: Some(false),
+                    description: Some("Electricity production".to_string()),
+                },
+                MetaInput {
+                    identifier: "Consumption".to_string(),
+                    unit: "kW".to_string(),
+                    carrier: Some("electricity".to_string()),
+                    consumption: Some(true),
+                    description: Some("Electricity consumption".to_string()),
+                },
+            ],
+        };
         let mock_csv = r"
-id,Time,Production#electricity_kW,Consumption#biomass_kW
+id,Time,Production,Consumption
 1,2020-01-01 00:00:00+00:00,1.0,2.0";
         let mut reader = Reader::from_reader(mock_csv.as_bytes());
-        import(&pool, &mut reader).await.unwrap();
+        import(&pool, &mut reader, &import_config).await.unwrap();
     }
 }

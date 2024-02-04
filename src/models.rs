@@ -177,6 +177,13 @@ pub struct MetaRows {
     pub values: Vec<MetaOutput>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ImportConfig {
+    pub file: Option<String>,
+    pub time_column: String,
+    pub timeseries: Vec<MetaInput>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Pagination {
     pub page: Option<i32>,
