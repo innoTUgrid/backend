@@ -437,7 +437,7 @@ pub async fn get_total_co2_emissions(
         ",
         pg_resampling_interval,
         from_timestamp,
-        to_timestamp,        
+        to_timestamp
     )
     .fetch_one(&pool)
     .await?;

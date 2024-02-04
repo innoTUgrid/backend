@@ -259,6 +259,80 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/KpiResult'
+            
+  /v1/kpi/total_production:
+    get:
+      tags:
+        - kpi
+      summary: Return Total Production of microgrid producers
+      description: Returns the sum of all energy produced by internal sources for the time period specified 
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: false
+          description: The resampling interval (e.g., "1hour", "30min").
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KpiResult'
+
+  /v1/kpi/total_co2_emissions:
+    get:
+      tags:
+        - kpi
+      summary: Return Total Co2 Emissions of microgrid
+      description: Returns the sum of Co2 emitted by producers and consumers for the time period specified 
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The start time in Rfc3339 format. (e.g. <2019-01-01T00:00:00Z>)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
+          description: The end time in Rfc3339 format. (e.g. <2019-01-01T12:00:00Z>)
+        - in: query
+          name: interval
+          schema:
+            type: string
+          required: false
+          description: The resampling interval (e.g., "1hour", "30min").
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KpiResult'
                   
   /v1/kpi/autarky/:
     get:
