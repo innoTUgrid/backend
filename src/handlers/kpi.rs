@@ -172,6 +172,8 @@ pub async fn get_total_consumption(
     Ok(Json(kpi_result))
 }
 
+/* 
+*/
 pub async fn get_total_production(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
@@ -400,4 +402,53 @@ pub async fn get_scope_two_emissions(
         kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
+}
+
+/* 
+*/
+pub async fn get_total_co2_emissions(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+    Query(resampling): Query<Resampling>,
+) -> Result<Json<KpiResult>, ApiError> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+    let pg_resampling_interval = resampling.map_interval()?;
+
+    let result = sqlx::query!(
+        r"
+        select 
+            sum(subquery.total_co2_emissions) as total_co2_emissions
+        from (
+            select
+                time_bucket($1, ts.series_timestamp) as bucket,
+                -- total co2 emissions
+                (avg(greatest(ts.series_value, 0.0)) * avg(emission_factor.factor)) as total_co2_emissions
+            from ts
+                join meta on ts.meta_id = meta.id
+                join energy_carrier on meta.carrier = energy_carrier.id
+                join emission_factor on energy_carrier.id = emission_factor.carrier
+            where
+                ts.series_timestamp between $2 and $3
+            group by
+                bucket
+            order by bucket
+        ) subquery;
+        ",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp,        
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let co2_emissions: f64 = result.total_co2_emissions.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let kpi_result = KpiResult {
+        value: co2_emissions,
+        name: String::from("total_co2_emissions"),
+        unit: Some(String::from("kgco2eq")),
+        from_timestamp,
+        to_timestamp,
+    };
+    Ok(Json(kpi_result))
 }
