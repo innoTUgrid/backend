@@ -12,9 +12,9 @@ pub async fn put_config(
 ) -> Result<Json<Value>, ApiError> {
     sqlx::query!(
         r#"
-        INSERT INTO config (id, config) VALUES (1, $1)
-        ON CONFLICT (id) DO UPDATE
-            SET config = $1
+        insert into config (id, config) values (1, $1)
+        on conflict (id) do update
+            set config = $1
         returning config
         "#,
         payload
@@ -28,7 +28,7 @@ pub async fn put_config(
 pub async fn get_config(State(pool): State<Pool<Postgres>>) -> Result<Json<Value>, ApiError> {
     let row = sqlx::query!(
         r#"
-        SELECT config FROM config
+        select config from config
         "#,
     )
     .fetch_one(&pool)
