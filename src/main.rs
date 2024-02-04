@@ -27,7 +27,7 @@ async fn main() {
 
     let pool = create_connection_pool(&config).await;
     if config.run_migrations {
-        println!("Running migrations");
+        tracing::info!("Running migrations");
         sqlx::migrate!().run(&pool).await.unwrap();
     }
 
@@ -37,9 +37,9 @@ async fn main() {
             .await
             .unwrap();
         if has_ts.is_some() {
-            println!("Database already contains data, aborting");
+            tracing::info!("Database already contains data. Aborting");
         } else {
-            println!(
+            tracing::info!(
                 "Loading initial data from {}",
                 config.load_initial_data_path.clone().unwrap()
             );
@@ -56,13 +56,13 @@ async fn main() {
 
     let args: Vec<String> = args().collect();
     if args.len() >= 2 && args[1] == "init" {
-        println!("App initialized");
+        tracing::info!("App initialized");
         return;
     }
 
     let app = create_router(pool);
 
-    println!("Listening on port {}", config.port);
+    tracing::info!("Listening on port {}", config.port);
     // run it with hyper on localhost:3000
     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 3000);
     axum::Server::bind(&socket)
