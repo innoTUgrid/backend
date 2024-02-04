@@ -5,12 +5,15 @@ The backend consists of multiple independent services each providing different f
 ### how to run this code
 
 1. start the container running the database detached from the terminal
-`docker compose up -d db`
+
+```docker compose up -d db```
 
 2. if running it for the **first time** or after recreating the database ... 
-`sqlx database create`
+
+```sqlx database create```
 
 3. ... otherwise simply do:
+
 `docker compose up`
 
 ### how to run this code (docker)
