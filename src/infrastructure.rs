@@ -1,7 +1,6 @@
 use crate::app_config::AppConfig;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
-use crate::handlers::emission_factor::get_emission_factors;
 use crate::handlers::kpi::{
     get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_one_emissions,
     get_scope_two_emissions, get_self_consumption, get_total_consumption,
@@ -11,7 +10,7 @@ use crate::handlers::timeseries::{
     add_timeseries, get_timeseries_by_identifier, resample_timeseries_by_identifier,
 };
 use crate::handlers::util::ping;
-
+use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
 use crate::handlers::import::upload_timeseries;
 use crate::models::Result;
 use axum::extract::DefaultBodyLimit;
@@ -57,9 +56,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/kpi/cost_savings/", get(get_cost_savings))
         .route("/v1/kpi/co2_savings/", get(get_co2_savings))
         .route("/v1/meta/", post(add_meta))
-        .route("/v1/meta/", get(read_meta))
         .route("/v1/meta/:identifier/", get(get_meta_by_identifier))
-        .route("/v1/emission_factors/", get(get_emission_factors))
+        .route("/v1/meta/", get(read_meta))
         .route("/v1/ts/", post(add_timeseries))
         .route("/v1/ts/upload/", post(upload_timeseries))
         .route("/v1/ts/:identifier/", get(get_timeseries_by_identifier))
@@ -67,6 +65,8 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
             "/v1/ts/:identifier/resample/",
             get(resample_timeseries_by_identifier),
         )
+        .route("/v1/emission_factor/", get(get_emission_factor))
+        .route("/v1/emission_factor/", post(add_emission_factor))
         .fallback(get(fallback_handler))
         .layer(cors)
         // limit file size to 10MB

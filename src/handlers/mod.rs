@@ -5,3 +5,4 @@ pub mod kpi;
 pub mod meta;
 pub mod timeseries;
 pub mod util;
+pub mod emission_factor;

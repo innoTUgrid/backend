@@ -50,7 +50,7 @@ impl<'de> Deserialize<'de> for Timestamptz {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, sqlx::FromRow)]
 pub struct TimeseriesMeta {
     pub id: i32,
     pub identifier: String,
@@ -158,7 +158,7 @@ pub struct MetaInput {
     pub consumption: Option<bool>,
     pub description: Option<String>,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, sqlx::FromRow)]
 pub struct MetaOutput {
     pub id: i32,
     pub identifier: String,
@@ -170,6 +170,45 @@ pub struct MetaOutput {
     pub min_timestamp: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub max_timestamp: Option<OffsetDateTime>,
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct CreateEmissionFactorRequest {
+    pub carrier: String,
+    pub unit: String,
+    pub factor: f64,
+    pub source: String,
+    pub source_url: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct CreateEmissionFactorResponse {
+    pub id: i32,
+    // this is optional because requested emission factor might not exist for creation
+    pub carrier: Option<String>,
+    pub unit: String,
+    pub factor: f64,
+    pub source: String,
+    pub source_url: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct EmissionFactorFilter {
+    pub source: Option<String>,
+    pub carrier: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct EmissionFactor {
+    pub id: i32,
+    pub carrier: String,
+    pub unit: String,
+    pub factor: f64,
+    pub source: String,
+    pub source_url: Option<String>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -361,16 +400,6 @@ pub struct KpiResult {
     pub from_timestamp: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub to_timestamp: OffsetDateTime,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct EmissionFactor {
-    pub id: i32,
-    pub carrier: String,
-    pub factor: f64,
-    pub unit: String,
-    pub source: String,
-    pub source_url: Option<String>,
 }
 
 // hold co2 emissions by source of production

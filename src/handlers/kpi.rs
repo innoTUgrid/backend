@@ -287,9 +287,6 @@ pub async fn get_cost_savings(
     Ok(Json(kpi))
 }
 
-/*
-return timeseries of scope 1 emissions for each source of production
-*/
 pub async fn get_scope_one_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
@@ -312,7 +309,6 @@ pub async fn get_scope_one_emissions(
     let mut kpi_results: Vec<EmissionsBySource> = vec![];
     let offset = resampling.hours_per_interval()?;
     for production in production_record {
-        //let kpi_value = production.scope_1_emissions.unwrap_or(0.0) * offset;
         let kpi_result = EmissionsBySource {
             bucket: production.bucket.unwrap(),
             source_name: production.source_of_production,
@@ -324,9 +320,6 @@ pub async fn get_scope_one_emissions(
     Ok(Json(kpi_results))
 }
 
-/*
-calc Scope 2 Emissions for each carrier
-*/
 pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
