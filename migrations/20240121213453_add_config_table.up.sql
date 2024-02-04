@@ -1,4 +1,3 @@
--- Add up migration script here
 create table config (
     id serial primary key,
     config jsonb not null,
