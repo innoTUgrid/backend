@@ -137,7 +137,6 @@ pub async fn add_timeseries(
         .collect::<Vec<_>>();
     identifiers.dedup();
 
-
     let metadata = sqlx::query_as!(
         TimeseriesMeta,
         r#"
@@ -148,7 +147,6 @@ pub async fn add_timeseries(
     )
     .fetch_all(&pool)
     .await?;
-
 
     let entries = req
         .timeseries

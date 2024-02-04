@@ -172,7 +172,6 @@ pub struct MetaOutput {
     pub max_timestamp: Option<OffsetDateTime>,
 }
 
-
 #[derive(Deserialize, Debug)]
 pub struct CreateEmissionFactorRequest {
     pub carrier: String,

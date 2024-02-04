@@ -1,6 +1,8 @@
 use crate::app_config::AppConfig;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
+use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
+use crate::handlers::import::upload_timeseries;
 use crate::handlers::kpi::{
     get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_one_emissions,
     get_scope_two_emissions, get_self_consumption, get_total_consumption,
@@ -10,8 +12,6 @@ use crate::handlers::timeseries::{
     add_timeseries, get_timeseries_by_identifier, resample_timeseries_by_identifier,
 };
 use crate::handlers::util::ping;
-use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
-use crate::handlers::import::upload_timeseries;
 use crate::models::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;

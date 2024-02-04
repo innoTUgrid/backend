@@ -60,4 +60,3 @@ pub async fn add_timeseries(
     assert_eq!(r.timeseries[0].value, value);
     r
 }
-
