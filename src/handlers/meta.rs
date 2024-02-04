@@ -63,8 +63,7 @@ pub async fn get_meta_by_identifier(
     State(pool): State<Pool<Postgres>>,
     Path(identifier): Path<String>,
 ) -> Result<Json<MetaOutput>, ApiError> {
-    /// NOTE: using a compile time checked query va query_as! results in a nullability error for the carrier field
-    /// Might have something to do with https://github.com/launchbadge/sqlx/issues/1852
+    /* NOTE: using a compile time checked query va query_as! results in a nullability error for the carrier field. Might have something to do with https://github.com/launchbadge/sqlx/issues/1852 */
     let meta_output = sqlx::query_as::<_, MetaOutput>(
         r"
         select
