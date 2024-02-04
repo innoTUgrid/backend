@@ -42,6 +42,23 @@ async fn test_add_timeseries() {
 }
 
 #[tokio::test]
+async fn test_add_timeseries_json() {
+    let client = get_client().await;
+    let identifier = get_random_string(10);
+
+    add_meta(&client, &identifier).await;
+    let timeseries = json!({
+        "timeseries": [{
+            "timestamp": "2024-01-29T15:32:31Z",
+            "value": 42,
+            "identifier": identifier
+        }]
+    });
+    let response = client.post("/v1/ts/").json(&timeseries).send().await;
+    assert!(response.status().is_success());
+}
+
+#[tokio::test]
 async fn test_get_timeseries_by_identifier() {
     let client = get_client().await;
     let identifier = get_random_string(10);
