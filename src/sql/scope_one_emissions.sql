@@ -1,17 +1,13 @@
---
---
---
-
 -- local production
 select
     time_bucket($1, ts.series_timestamp) as bucket,
     meta.identifier as source_of_production,
     energy_carrier.name as production_carrier,
     -- average production per identifier over interval to account for KwH
-    greatest(avg(ts.series_value), 0) as production,
+    avg(greatest(ts.series_value, 0.0)) as production,
     meta.unit as production_unit,
     -- scope 1 emissions
-    (greatest(avg(ts.series_value), 0) * avg(emission_factor.factor)) as scope_1_emissions,
+    (avg(greatest(ts.series_value, 0.0)) * avg(emission_factor.factor)) as scope_1_emissions,
     emission_factor.unit as emission_factor_unit
 from ts
     join meta on ts.meta_id = meta.id
