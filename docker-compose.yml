@@ -31,6 +31,18 @@ services:
     volumes:
       - pgdata:/var/lib/timescaledb/data
       - ./initdb:/docker-entrypoint-initdb.d
-  
+
+  smardscraper:
+    container_name: smard
+    build:
+      context: ./services/scraping-service
+      dockerfile: Dockerfile
+      network: host
+    volumes:
+      - ./services/scraping-service:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
 volumes:
   pgdata: {}
