@@ -2,23 +2,12 @@
 
 The backend consists of multiple independent services each providing different functionality.
 
-### how to run this code
-
-1. start the container running the database detached from the terminal
-```bash 
-docker compose up -d db
-```
-
-2. if running it for the **first time** or after recreating the database ... 
-```bash 
-sqlx database create
-```
-
-3. ... otherwise simply do:
-
-`docker compose up`
-
 ### how to run this code (docker)
+
+Remove any existing containers and volumes:
+```bash
+docker compose down -v
+```
 
 Pull our prebuilt image from ghcr.io: 
 ```bash
@@ -30,20 +19,37 @@ Run the containers:
 docker compose up -d
 ```
 
+### how to run this code locally
+
+1. start the container running the database detached from the terminal
+```bash 
+docker compose up -d db
+```
+
+2. if running it for the **first time** or after recreating the database ... 
+```bash 
+./scripts/init-db.sh
+```
+
+3. then:
+`docker compose up -d`
+
 
 #### **drop database** e.g. in case initial data has been updated and needs to reinitialize (see step 2. above)
-1. check if container hosting the database is running
+1. remove the database container
 ```bash
-docker ps
+docker compose down db -v
 ```
-2. alternatively start it with
+2. then start the database container detached from the terminal
 ```bash
 docker compose up db -d
 ```
-3. then drop & recreate empty database
-```bash
-sqlx database drop
+
+2. then run the initialization script
+```bash 
+./scripts/init-db.sh
 ```
+
 
 #### **finally** check ping endpoint in terminal ...
 ```bash
