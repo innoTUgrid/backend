@@ -19,7 +19,7 @@ WORKDIR /app
 COPY --from=builder /app/target/release/inno2grid-backend .
 
 ENV RUN_MIGRATIONS=true
-ENV LOAD_INITIAL_DATA_PATH=assets/inno2grid_all_data_cleaned_and_aligned.csv
+ENV LOAD_INITIAL_DATA_PATH=assets/inno2grid_all_data_cleaned_and_aligned.meta.yaml
 
 COPY migrations migrations
 COPY assets assets
