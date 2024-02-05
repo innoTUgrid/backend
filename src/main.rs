@@ -8,6 +8,7 @@ use crate::{
     models::ImportConfig,
 };
 use app_config::AppConfig;
+
 use tracing_subscriber::fmt;
 
 mod app_config;
@@ -47,8 +48,13 @@ async fn main() {
                 std::fs::File::open(config.load_initial_data_path.clone().unwrap()).unwrap();
             let import_config: ImportConfig = serde_yaml::from_reader(&meta_reader).unwrap();
 
-            let mut reader = csv::Reader::from_path(import_config.file.clone().unwrap()).unwrap();
-            import::import(&pool, &mut reader, &import_config)
+            let mut readers = vec![];
+            for file in import_config.files.clone().unwrap() {
+                let reader = csv::Reader::from_path(file).unwrap();
+                readers.push(reader);
+            }
+
+            import::import(&pool, readers, &import_config)
                 .await
                 .unwrap();
         }

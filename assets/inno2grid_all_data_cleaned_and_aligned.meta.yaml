@@ -1,10 +1,27 @@
 
-file: assets/inno2grid_all_data_cleaned_and_aligned.csv
+files: 
+  - assets/2019_inno2grid_all_data_cleaned_and_aligned.csv
+  - assets/2020_inno2grid_all_data_cleaned_and_aligned.csv
 
 time_column: "Time"
 
 # The column names in the CSV file
 timeseries:
+  - identifier: "EVSE_cluster"
+    unit: "kW"
+    description: "EVSE cluster"
+    consumption: true
+    carrier: "electricity"
+  - identifier: "Haus_Harbig"
+    unit: "kW"
+    description: "Haus Harbig"
+    consumption: true
+    carrier: "electricity"
+  - identifier: "Haus_Fleming"
+    unit: "kW"
+    description: "Haus Fleming"
+    consumption: true
+    carrier: "electricity"
   - identifier: "Production_of_CHP"
     unit: "kW"
     description: "Production of CHP"

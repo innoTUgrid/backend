@@ -217,7 +217,7 @@ pub struct MetaRows {
 
 #[derive(Serialize, Deserialize)]
 pub struct ImportConfig {
-    pub file: Option<String>,
+    pub files: Option<Vec<String>>,
     pub time_column: String,
     pub timeseries: Vec<MetaInput>,
 }

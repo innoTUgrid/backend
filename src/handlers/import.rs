@@ -25,9 +25,9 @@ pub async fn upload_timeseries(
     while let Some(field) = multipart.next_field().await.unwrap() {
         // whole file is read into memory, which is bad but ok for now
         let text = field.text().await.unwrap();
-        let mut reader = csv::ReaderBuilder::new().from_reader(text.as_bytes());
+        let reader = csv::ReaderBuilder::new().from_reader(text.as_bytes());
 
-        import(&pool, &mut reader, &import_config).await?;
+        import(&pool, vec![reader], &import_config).await?;
     }
     Ok(Json("File uploaded successfully".to_string()))
 }
