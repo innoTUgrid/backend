@@ -172,7 +172,7 @@ pub async fn get_total_consumption(
     Ok(Json(kpi_result))
 }
 
-/* 
+/*
 */
 pub async fn get_total_production(
     Query(timestamp_filter): Query<TimestampFilter>,
@@ -203,12 +203,13 @@ pub async fn get_total_production(
         ",
         pg_resampling_interval,
         from_timestamp,
-        to_timestamp,        
+        to_timestamp,
     )
     .fetch_one(&pool)
     .await?;
 
-    let production: f64 = production_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let production: f64 =
+        production_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
     let kpi_result = KpiResult {
         value: production,
         name: String::from("total_production"),
@@ -404,7 +405,7 @@ pub async fn get_scope_two_emissions(
     Ok(Json(kpi_results))
 }
 
-/* 
+/*
 */
 pub async fn get_total_co2_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
@@ -442,7 +443,8 @@ pub async fn get_total_co2_emissions(
     .fetch_one(&pool)
     .await?;
 
-    let co2_emissions: f64 = result.total_co2_emissions.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let co2_emissions: f64 =
+        result.total_co2_emissions.unwrap_or(0.0) * resampling.hours_per_interval()?;
     let kpi_result = KpiResult {
         value: co2_emissions,
         name: String::from("total_co2_emissions"),
