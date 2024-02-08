@@ -357,6 +357,8 @@ pub async fn get_scope_one_emissions(
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     let offset = resampling.hours_per_interval()?;
     for production in production_record {
+        // for debugging
+        println!("format {} arguments", production.bucket.unwrap());
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
             carrier_name: production.production_carrier,

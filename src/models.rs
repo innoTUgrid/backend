@@ -282,12 +282,19 @@ impl Resampling {
             "hour" => Duration::hours(num_part),
             "day" => Duration::days(num_part),
             "week" => Duration::weeks(num_part),
-            "month" => Duration::weeks(4 * num_part), // Approximation
-            "year" => Duration::weeks(52 * num_part), // Approximation
+            // one month has 730 hours on average
+            "month" => Duration::hours(num_part * 730), // Approximation
+            "year" => Duration::hours(num_part * 730 * 12), // Approximation
             _ => return Err(anyhow!("invalid interval format")),
         };
-
-        let encoded = PgInterval::try_from(duration).unwrap();
+        let encoded = PgInterval::try_from(duration).unwrap();        
+        
+        // for debugging
+        println!(
+            "num_part: {} | unit_part: {} | duration: {} | encoded: {:?}", 
+            num_part, unit_part, duration, encoded
+        );
+        
         Ok(encoded)
     }
     pub fn hours_per_interval(&self) -> std::result::Result<f64, anyhow::Error> {
