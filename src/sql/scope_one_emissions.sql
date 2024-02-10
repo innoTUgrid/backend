@@ -15,7 +15,8 @@ from ts
     join energy_carrier on meta.carrier = energy_carrier.id
     join emission_factor on energy_carrier.id = emission_factor.carrier
 where
-    meta.consumption = false 
+    meta.consumption = false AND
+    meta.local = true
     AND
     ts.series_timestamp between $1 and $2
 group by

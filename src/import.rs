@@ -133,6 +133,7 @@ mod tests {
                     carrier: Some("electricity".to_string()),
                     consumption: Some(false),
                     description: Some("Electricity production".to_string()),
+                    local: Some(true),
                 },
                 MetaInput {
                     identifier: "Consumption".to_string(),
@@ -140,6 +141,7 @@ mod tests {
                     carrier: Some("electricity".to_string()),
                     consumption: Some(true),
                     description: Some("Electricity consumption".to_string()),
+                    local: Some(true),
                 },
             ],
         };

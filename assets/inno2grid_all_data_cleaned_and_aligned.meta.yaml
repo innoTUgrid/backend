@@ -11,99 +11,119 @@ timeseries:
     unit: "kW"
     description: "EVSE cluster"
     consumption: true
+    local: true
     carrier: "electricity"
   - identifier: "Haus_Harbig"
     unit: "kW"
     description: "Haus Harbig"
     consumption: true
+    local: true
     carrier: "electricity"
   - identifier: "Haus_Fleming"
     unit: "kW"
     description: "Haus Fleming"
     consumption: true
+    local: true
     carrier: "electricity"
   - identifier: "Production_of_CHP"
     unit: "kW"
     description: "Production of CHP"
     consumption: false
+    local: true
     carrier: "biogas"
   - identifier: "Total_Load"
     unit: "kW"
     description: "Total Load"
     consumption: true
+    local: true
     carrier: "electricity"
   - identifier: "Grid_Reference_SMARD"
     unit: "kW"
     description: "Grid Reference SMARD"
     consumption: true
+    local: false
     carrier: "electricity"
   - identifier: "Production_of_PV"
     unit: "kW"
     description: "Production of PV"
     consumption: false
+    local: true
     carrier: "solar"
   - identifier: "Brown Coal"
     unit: "MWh"
     description: "Brown Coal"
+    local: false
     consumption: true
     carrier: "lignite"
   - identifier: "Hard Coal"
     unit: "MWh"
     description: "Hard Coal"
     consumption: true
+    local: false
     carrier: "coal"
   - identifier: "Other conventional fuel"
     unit: "MWh"
     description: "Other conventional fuel"
     consumption: true
+    local: false
     carrier: "other_conventional"
   - identifier: "Natural Gas"
     unit: "MWh"
     description: "Natural Gas"
     consumption: true
+    local: false
     carrier: "gas"
   - identifier: "Biomass"
     unit: "MWh"
     description: "Biomass"
     consumption: true
+    local: false
     carrier: "biomass"
   - identifier: "Hydropower"
     unit: "MWh"
     description: "Hydropower"
     consumption: true
+    local: false
     carrier: "hydro"
   - identifier: "WindOffshore"
     unit: "MWh"
     description: "Wind Offshore"
     consumption: true
+    local: false
     carrier: "offwind"
   - identifier: "WindOnshore"
     unit: "MWh"
     description: "Wind Onshore"
     consumption: true
+    local: false
     carrier: "onwind"
   - identifier: "Photovoltaic"
     unit: "MWh"
     description: "Photovoltaic"
     consumption: true
+    local: false
     carrier: "solar"
   - identifier: "Other Renewables"
     unit: "MWh"
     description: "Other Renewables"
     consumption: true
+    local: false
     carrier: "other_renewable"
   - identifier: "Pumped Storage"
     unit: "MWh"
     description: "Pumped Storage"
     consumption: true
+    local: false
     carrier: "pumped_storage"
   - identifier: "Trafo_out_1_power_Watts_15_min_mean"
     unit: "W"
     description: "Trafo out 1 power"
     consumption: true
+    local: true
     carrier: "electricity"
   - identifier: "Trafo_out_2_power_Watts_15_min_mean"
     unit: "W"
     description: "Trafo out 2 power"
     consumption: true
+    local: true
     carrier: "electricity"

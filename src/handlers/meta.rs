@@ -23,6 +23,7 @@ pub async fn read_meta(
             meta.consumption as consumption,
             meta.description as description,
             energy_carrier.name as carrier,
+            meta.local as local,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
         from meta
@@ -48,8 +49,9 @@ pub async fn read_meta(
             consumption: row.get(3),
             description: row.get(4),
             carrier: row.get(5),
-            min_timestamp: row.get(6),
-            max_timestamp: row.get(7),
+            local: row.get(6),
+            min_timestamp: row.get(7),
+            max_timestamp: row.get(8),
         };
         json_values.push(meta_value);
     }
@@ -73,6 +75,7 @@ pub async fn get_meta_by_identifier(
             meta.consumption as consumption,
             meta.description as description,
             energy_carrier.name as carrier,
+            meta.local as local,
             min(ts.series_timestamp) as min_timestamp,
             max(ts.series_timestamp) as max_timestamp
         from meta
@@ -100,7 +103,7 @@ pub async fn add_meta(
     let meta_output: MetaOutput = sqlx::query_as!(
         MetaOutput,
         r"
-        insert into meta (identifier, unit, carrier, consumption, description)
+        insert into meta (identifier, unit, carrier, consumption, description, local)
         select
             $1,
             $2,
@@ -110,7 +113,8 @@ pub async fn add_meta(
                 else null
             end,
             $4,
-            $5
+            $5,
+            $6
         returning
             id,
             identifier,
@@ -119,12 +123,14 @@ pub async fn add_meta(
             $4 as consumption,
             $5 as description,
             null::timestamptz as min_timestamp,
-            null::timestamptz as max_timestamp",
+            null::timestamptz as max_timestamp,
+            $6 as local",
         &meta.identifier,
         &meta.unit,
         meta.carrier.as_deref(),
         meta.consumption,
         meta.description,
+        meta.local,
     )
     .fetch_one(&pool)
     .await?;

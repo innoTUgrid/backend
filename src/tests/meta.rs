@@ -76,6 +76,7 @@ async fn test_add_meta_empty_carrier() {
         carrier: None,
         consumption: Some(true),
         description: Some("description".to_string()),
+        local: Some(true),
     };
     let res = client.post("/v1/meta/").json(&meta).send().await;
     assert!(res.status().is_success());

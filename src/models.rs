@@ -157,6 +157,7 @@ pub struct MetaInput {
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
     pub description: Option<String>,
+    pub local: Option<bool>,
 }
 #[derive(Deserialize, Serialize, Debug, sqlx::FromRow)]
 pub struct MetaOutput {
@@ -166,6 +167,7 @@ pub struct MetaOutput {
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
     pub description: Option<String>,
+    pub local: Option<bool>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub min_timestamp: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]
@@ -415,7 +417,7 @@ pub struct KpiResult {
     pub to_timestamp: OffsetDateTime,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EmissionsByCarrier {
     #[serde(with = "time::serde::rfc3339")]
     pub bucket: OffsetDateTime,

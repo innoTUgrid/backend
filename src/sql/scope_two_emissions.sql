@@ -56,6 +56,7 @@ from
         where
             -- TODO: hardcoding the identifier is not nice and hacky
             meta.consumption = true and
+            meta.local = false and
             meta.identifier = 'grid_reference_smard' and
             ts.series_timestamp between $2 and $3
         group by
