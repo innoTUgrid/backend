@@ -1,6 +1,7 @@
 -- local production
 select
-    time_bucket($1, ts.series_timestamp) as bucket,
+    --time_bucket('{interval}', ts.series_timestamp, ) as bucket,
+    time_bucket('{interval}', ts.series_timestamp, origin=>$1::timestamptz) as bucket,
     meta.identifier as source_of_production,
     energy_carrier.name as production_carrier,
     -- average production per identifier over interval to account for KwH
@@ -14,8 +15,9 @@ from ts
     join energy_carrier on meta.carrier = energy_carrier.id
     join emission_factor on energy_carrier.id = emission_factor.carrier
 where
-    meta.consumption = false and
-    ts.series_timestamp between $2 and $3
+    meta.consumption = false 
+    AND
+    ts.series_timestamp between $1 and $2
 group by
     bucket,
     source_of_production,

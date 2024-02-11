@@ -49,6 +49,9 @@ pub enum ApiError {
     #[error("an internal server error occurred")]
     Anyhow(#[from] anyhow::Error),
 
+    #[error("Invalid interval format")]
+    InvalidInterval,
+
     #[error("request path not found")]
     NotFound,
 }
@@ -69,6 +72,7 @@ impl ApiError {
             Self::ParseFloatError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ParseIntError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::CsvError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InvalidInterval => StatusCode::BAD_REQUEST,
         }
     }
 }
@@ -82,6 +86,7 @@ impl IntoResponse for ApiError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 database_error.to_string(),
             ),
+            ApiError::InvalidInterval => (StatusCode::BAD_REQUEST, "Invalid interval".to_string()),
             _ => (self.status_code(), self.to_string()),
         };
         (status, message).into_response()

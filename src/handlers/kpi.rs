@@ -15,6 +15,8 @@ use rand::Rng;
 use sqlx::{Pool, Postgres};
 use std::string::String;
 
+use tokio::fs;
+
 /*
 */
 pub async fn get_self_consumption(
@@ -335,30 +337,38 @@ pub async fn get_cost_savings(
     Ok(Json(kpi))
 }
 
-pub async fn get_scope_one_emissions(
+ pub async fn get_scope_one_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
-    let pg_resampling_interval = resampling.map_interval()?;
+    if !resampling.validate_interval() {
+        return Err(ApiError::InvalidInterval);
+    }
+
+    let interval = resampling.interval.clone();
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let production_record = sqlx::query_file_as!(
-        ProductionWithEmissions,
-        "src/sql/scope_one_emissions.sql",
-        pg_resampling_interval,
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_all(&pool)
-    .await?;
+    let mut query = fs::read_to_string("src/sql/scope_one_emissions.sql")
+        .await
+        .expect("Failed to read SQL file");    
+
+    query = query.replace("{interval}", &interval);
+
+    println!("query: {}", query);
+
+    let production_record = sqlx::query_as::<_, ProductionWithEmissions>(&query)
+        .bind(from_timestamp)
+        .bind(to_timestamp)
+        .fetch_all(&pool)
+        .await?;
 
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     let offset = resampling.hours_per_interval()?;
     for production in production_record {
         // for debugging
-        println!("format {} arguments", production.bucket.unwrap());
+        println!("bucket {}", production.bucket.unwrap());
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
             carrier_name: production.production_carrier,
@@ -376,6 +386,7 @@ pub async fn get_scope_two_emissions(
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
     let pg_resampling_interval = resampling.map_interval()?;
+    //let pg_resampling_interval = resampling.interval;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 

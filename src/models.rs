@@ -287,7 +287,7 @@ impl Resampling {
             "year" => Duration::hours(num_part * 730 * 12), // Approximation
             _ => return Err(anyhow!("invalid interval format")),
         };
-        let encoded = PgInterval::try_from(duration).unwrap();        
+        let encoded = PgInterval::try_from(duration).unwrap();
         
         // for debugging
         println!(
@@ -297,6 +297,12 @@ impl Resampling {
         
         Ok(encoded)
     }
+    
+    pub fn validate_interval(&self) -> bool {
+        let pattern = Regex::new(r"^\d+(minute|day|week|month|year)$").expect("Invalid interval");
+        pattern.is_match(&self.interval)
+    }
+    
     pub fn hours_per_interval(&self) -> std::result::Result<f64, anyhow::Error> {
         let re = Regex::new(r"(\d+)(\w+)").unwrap();
         let caps = re
@@ -376,6 +382,7 @@ pub struct Consumption {
 }
 
 // struct to hold intermediate results for Scope 1 emissions kpi
+#[derive(sqlx::FromRow)]
 pub struct ProductionWithEmissions {
     pub bucket: Option<OffsetDateTime>,
     pub source_of_production: String,
