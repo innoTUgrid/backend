@@ -356,8 +356,6 @@ pub async fn get_cost_savings(
 
     query = query.replace("{interval}", &interval);
 
-    println!("query: {}", query);
-
     let production_record = sqlx::query_as::<_, ProductionWithEmissions>(&query)
         .bind(from_timestamp)
         .bind(to_timestamp)
@@ -367,8 +365,6 @@ pub async fn get_cost_savings(
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
     let offset = resampling.hours_per_interval()?;
     for production in production_record {
-        // for debugging
-        println!("bucket {}", production.bucket.unwrap());
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
             carrier_name: production.production_carrier,
