@@ -208,7 +208,9 @@ pub struct EmissionFactor {
     pub factor: f64,
     pub source: String,
     pub source_url: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
 }
 
@@ -276,28 +278,18 @@ impl Resampling {
         let caps = re
             .captures(&self.interval)
             .ok_or_else(|| anyhow!("Invalid interval format"))?;
-        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<i64>()?;
+        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<i32>()?;
         let unit_part = caps.get(2).map_or("", |m| m.as_str());
 
         let duration = match unit_part {
-            "min" => Duration::minutes(num_part),
-            "hour" => Duration::hours(num_part),
-            "day" => Duration::days(num_part),
-            "week" => Duration::weeks(num_part),
-            // one month has 730 hours on average
-            "month" => Duration::hours(num_part * 730), // Approximation
-            "year" => Duration::hours(num_part * 730 * 12), // Approximation
+            "month" => PgInterval { months: num_part, microseconds: 0, days: 0},
+            "hour" => PgInterval {months: 0, microseconds: (num_part * 60 * 60 * 1000) as i64, days: 0},
+            "year" => PgInterval {months: 12 * num_part , microseconds: 0, days: 0},
+            "day" => PgInterval {months: 0, microseconds: 0, days: num_part},
+            "min" => PgInterval {months:0 , microseconds: (num_part * 60 * 1000) as i64, days: 0},
             _ => return Err(anyhow!("invalid interval format")),
         };
-        let encoded = PgInterval::try_from(duration).unwrap();
-        
-        // for debugging
-        println!(
-            "num_part: {} | unit_part: {} | duration: {} | encoded: {:?}", 
-            num_part, unit_part, duration, encoded
-        );
-        
-        Ok(encoded)
+        Ok(duration)
     }
     
     pub fn validate_interval(&self) -> bool {
@@ -390,8 +382,7 @@ pub struct ProductionWithEmissions {
     pub source_of_production: String,
     pub production_carrier: String,
     pub production: Option<f64>,
-    pub production_unit: String,
-    pub scope_1_emissions: Option<f64>,
+    pub scope_one_emissions: Option<f64>,
     pub emission_factor_unit: String,
 }
 
@@ -455,7 +446,7 @@ fn test_map_interval() {
 
     assert_eq!(
         resample.map_interval().unwrap(),
-        PgInterval::try_from(Duration::hours(1)).unwrap()
+        PgInterval {months: 0, days: 0, microseconds: 60 * 1000 * 60}
     );
 
     let resample = Resampling {
@@ -464,7 +455,7 @@ fn test_map_interval() {
 
     assert_eq!(
         resample.map_interval().unwrap(),
-        PgInterval::try_from(Duration::minutes(30)).unwrap()
+        PgInterval {months: 0, days: 0, microseconds: 30 * 60 * 1000}
     );
 
     let resample = Resampling {
