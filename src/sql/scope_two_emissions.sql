@@ -12,7 +12,7 @@ select
 from
     (
         select
-            time_bucket($1, ts.series_timestamp) as bucket,
+            time_bucket($1::interval, ts.series_timestamp) as bucket,
             sum(ts.series_value) / total.total_sum as carrier_proportion,
             energy_carrier.name as carrier_name,
             emission_factor.factor as emission_factor,
@@ -23,7 +23,7 @@ from
             join emission_factor on energy_carrier.id = emission_factor.carrier
             join (
                 select
-                    time_bucket($1, ts.series_timestamp) as inner_bucket,
+                    time_bucket($1::interval, ts.series_timestamp) as inner_bucket,
                     sum(series_value) as total_sum
                 from ts
                     join meta on ts.meta_id = meta.id
@@ -34,7 +34,7 @@ from
                     ts.series_timestamp between $2 and $3
                 group by
                     inner_bucket
-            ) as total on total.inner_bucket = time_bucket($1, ts.series_timestamp)
+            ) as total on total.inner_bucket = time_bucket($1::interval, ts.series_timestamp)
         where
             meta.consumption = true and
             energy_carrier.name != 'electricity' and
@@ -48,7 +48,7 @@ from
     ) as carrier_proportion_with_emission_factor
     left join (
         select
-            time_bucket($1, ts.series_timestamp) as bucket,
+            time_bucket($1::interval, ts.series_timestamp) as bucket,
             avg(series_value) as bucket_consumption,
             meta.unit
         from ts
