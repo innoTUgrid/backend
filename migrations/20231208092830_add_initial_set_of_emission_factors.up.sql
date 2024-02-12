@@ -26,7 +26,6 @@ insert into emission_factor
 select id, 0.048, 'kgco2eq/kwh', 'IPCC', null
 from energy_carrier where energy_carrier.name = 'solar';
 
-
 insert into emission_factor
 (carrier, factor, unit, source, source_url)
 select id, 0.012, 'kgco2eq/kwh', 'IPCC', null
