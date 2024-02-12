@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::postgres::types::PgInterval;
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
-use time::{Duration, OffsetDateTime};
+use time::{OffsetDateTime};
 
 /// wrap postgres timestamptz to achieve human-readable serialization
 #[derive(sqlx::Type)]
@@ -282,21 +282,41 @@ impl Resampling {
         let unit_part = caps.get(2).map_or("", |m| m.as_str());
 
         let duration = match unit_part {
-            "month" => PgInterval { months: num_part, microseconds: 0, days: 0},
-            "hour" => PgInterval {months: 0, microseconds: (num_part * 60 * 60 * 1000) as i64, days: 0},
-            "year" => PgInterval {months: 12 * num_part , microseconds: 0, days: 0},
-            "day" => PgInterval {months: 0, microseconds: 0, days: num_part},
-            "min" => PgInterval {months:0 , microseconds: (num_part * 60 * 1000) as i64, days: 0},
+            "month" => PgInterval {
+                months: num_part,
+                microseconds: 0,
+                days: 0,
+            },
+            "hour" => PgInterval {
+                months: 0,
+                microseconds: (num_part * 60 * 60 * 1000) as i64,
+                days: 0,
+            },
+            "year" => PgInterval {
+                months: 12 * num_part,
+                microseconds: 0,
+                days: 0,
+            },
+            "day" => PgInterval {
+                months: 0,
+                microseconds: 0,
+                days: num_part,
+            },
+            "min" => PgInterval {
+                months: 0,
+                microseconds: (num_part * 60 * 1000) as i64,
+                days: 0,
+            },
             _ => return Err(anyhow!("invalid interval format")),
         };
         Ok(duration)
     }
-    
+
     pub fn validate_interval(&self) -> bool {
         let pattern = Regex::new(r"^\d+(minute|day|week|month|year)$").expect("Invalid interval");
         pattern.is_match(&self.interval)
     }
-    
+
     pub fn hours_per_interval(&self) -> std::result::Result<f64, anyhow::Error> {
         let re = Regex::new(r"(\d+)(\w+)").unwrap();
         let caps = re
@@ -446,7 +466,11 @@ fn test_map_interval() {
 
     assert_eq!(
         resample.map_interval().unwrap(),
-        PgInterval {months: 0, days: 0, microseconds: 60 * 1000 * 60}
+        PgInterval {
+            months: 0,
+            days: 0,
+            microseconds: 60 * 1000 * 60
+        }
     );
 
     let resample = Resampling {
@@ -455,7 +479,11 @@ fn test_map_interval() {
 
     assert_eq!(
         resample.map_interval().unwrap(),
-        PgInterval {months: 0, days: 0, microseconds: 30 * 60 * 1000}
+        PgInterval {
+            months: 0,
+            days: 0,
+            microseconds: 30 * 60 * 1000
+        }
     );
 
     let resample = Resampling {

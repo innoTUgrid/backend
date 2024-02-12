@@ -320,15 +320,13 @@ pub async fn get_cost_savings(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<KpiResult>> {
-
     let from_timestamp = timestamp_filter.from.unwrap();
-    let to_timestamp= timestamp_filter.to.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
 
-    let cost_saving_query_results = sqlx::query_file!(
-        "src/sql/cost_savings.sql",
-        from_timestamp,
-        to_timestamp,
-    ).fetch_one(&pool).await?;
+    let cost_saving_query_results =
+        sqlx::query_file!("src/sql/cost_savings.sql", from_timestamp, to_timestamp,)
+            .fetch_one(&pool)
+            .await?;
 
     let kpi = KpiResult {
         value: cost_saving_query_results.cost_savings.unwrap(),
@@ -340,7 +338,7 @@ pub async fn get_cost_savings(
     Ok(Json(kpi))
 }
 
- pub async fn get_scope_one_emissions(
+pub async fn get_scope_one_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
@@ -358,12 +356,12 @@ pub async fn get_cost_savings(
         from_timestamp,
         to_timestamp,
         interval,
-        )
-        .fetch_all(&pool)
-        .await?;
+    )
+    .fetch_all(&pool)
+    .await?;
 
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
-    let offset = resampling.hours_per_interval()?;
+    let _offset = resampling.hours_per_interval()?;
     for production in production_record {
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
@@ -463,4 +461,3 @@ pub async fn get_total_co2_emissions(
     };
     Ok(Json(kpi_result))
 }
-
