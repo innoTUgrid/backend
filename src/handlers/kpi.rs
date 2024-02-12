@@ -383,7 +383,6 @@ pub async fn get_scope_two_emissions(
         return Err(ApiError::InvalidInterval);
     }
     let pg_resampling_interval = resampling.map_interval()?;
-    //let pg_resampling_interval = resampling.interval;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
