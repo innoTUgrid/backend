@@ -313,7 +313,7 @@ impl Resampling {
     }
 
     pub fn validate_interval(&self) -> bool {
-        let pattern = Regex::new(r"^\d+(minute|day|week|month|year)$").expect("Invalid interval");
+        let pattern = Regex::new(r"^\d+(min|day|week|month|year|hour)$").expect("Invalid interval");
         pattern.is_match(&self.interval)
     }
 
