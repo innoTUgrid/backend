@@ -141,7 +141,7 @@ pub async fn add_timeseries(
         TimeseriesMeta,
         r#"
         select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description
-        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        from meta left join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier IN (select * from unnest($1::text[]))"#,
         &identifiers,
     )
