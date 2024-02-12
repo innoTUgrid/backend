@@ -10,15 +10,9 @@ use crate::models::TimestampFilter;
 
 use axum::extract::{Query, State};
 use axum::Json;
-
-use rand::Rng;
 use sqlx::{Pool, Postgres};
 use std::string::String;
 
-use tokio::fs;
-
-/*
-*/
 pub async fn get_self_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
@@ -324,11 +318,20 @@ pub async fn get_co2_savings(
 
 pub async fn get_cost_savings(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(_pool): State<Pool<Postgres>>,
+    State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<KpiResult>> {
-    let random_cost_savings = rand::thread_rng().gen_range(0.0..100.0);
+
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp= timestamp_filter.to.unwrap();
+
+    let cost_saving_query_results = sqlx::query_file!(
+        "src/sql/cost_savings.sql",
+        from_timestamp,
+        to_timestamp,
+    ).fetch_one(&pool).await?;
+
     let kpi = KpiResult {
-        value: random_cost_savings,
+        value: cost_saving_query_results.cost_savings.unwrap(),
         name: String::from("cost_savings"),
         unit: Some(String::from("EUR")),
         from_timestamp: timestamp_filter.to.unwrap(),
@@ -345,20 +348,17 @@ pub async fn get_cost_savings(
     if !resampling.validate_interval() {
         return Err(ApiError::InvalidInterval);
     }
-
-    let interval = resampling.interval.clone();
+    let interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let mut query = fs::read_to_string("src/sql/scope_one_emissions.sql")
-        .await
-        .expect("Failed to read SQL file");    
-
-    query = query.replace("{interval}", &interval);
-
-    let production_record = sqlx::query_as::<_, ProductionWithEmissions>(&query)
-        .bind(from_timestamp)
-        .bind(to_timestamp)
+    let production_record = sqlx::query_file_as!(
+        ProductionWithEmissions,
+        "src/sql/scope_one_emissions.sql",
+        from_timestamp,
+        to_timestamp,
+        interval,
+        )
         .fetch_all(&pool)
         .await?;
 
@@ -368,7 +368,7 @@ pub async fn get_cost_savings(
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
             carrier_name: production.production_carrier,
-            value: production.scope_1_emissions.unwrap_or(0.0) * offset,
+            value: production.scope_one_emissions.unwrap_or(0.0),
             unit: String::from("kgco2eq"),
         };
         kpi_results.push(kpi_result);
@@ -463,3 +463,4 @@ pub async fn get_total_co2_emissions(
     };
     Ok(Json(kpi_result))
 }
+
