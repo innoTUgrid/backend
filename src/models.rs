@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::postgres::types::PgInterval;
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
-use time::{OffsetDateTime};
+use time::OffsetDateTime;
 
 /// wrap postgres timestamptz to achieve human-readable serialization
 #[derive(sqlx::Type)]
