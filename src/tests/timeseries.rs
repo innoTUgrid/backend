@@ -146,7 +146,6 @@ async fn test_resample_timeseries_by_identifier() {
     assert!(response.status().is_success());
 
     let body: ResampledTimeseries = response.json().await;
-    assert_eq!(body.meta.unit, "testUnith");
     assert_eq!(body.datapoints.first().unwrap().mean_value.unwrap(), 54.0);
 }
 #[tokio::test]

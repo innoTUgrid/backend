@@ -62,7 +62,7 @@ select
     carrier_proportion_with_emission_factor.carrier_name,
     carrier_proportion_with_emission_factor.emission_factor,
     carrier_proportion_with_emission_factor.emission_unit
-from local_consumption
-    left join carrier_proportion_with_emission_factor on local_consumption.bucket = carrier_proportion_with_emission_factor.bucket
+from carrier_proportion_with_emission_factor
+    left join local_consumption on local_consumption.bucket = carrier_proportion_with_emission_factor.bucket
 order by
     local_consumption.bucket

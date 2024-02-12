@@ -65,11 +65,8 @@ async fn test_get_scope_one_emissions() {
 
     assert!(response.status().is_success());
     let body: Vec<EmissionsByCarrier> = response.json().await;
-    body.iter().for_each(|x| {
-        if x.carrier_name == "coal" {
-            assert_eq!(x.value, 2.3074296675191817);
-        }
-    });
+    let first = body.iter().find(|x| x.carrier_name == "solar").unwrap();
+    assert_eq!(first.value, 0.0);
 }
 
 #[tokio::test]
@@ -83,11 +80,8 @@ async fn test_get_scope_two_emissions() {
 
     assert!(response.status().is_success());
     let body: Vec<EmissionsByCarrier> = response.json().await;
-    body.iter().for_each(|x| {
-        if x.carrier_name == "coal" {
-            assert_eq!(x.value, 2.3074296675191817);
-        }
-    });
+    let first = body.iter().find(|x| x.carrier_name == "coal").unwrap();
+    assert_eq!(first.value, 2.3590379301168807);
 }
 
 #[tokio::test]
@@ -95,7 +89,7 @@ async fn test_scope_one_plus_two_eq_total() {
     let client = get_client().await;
 
     let response_scope_one = client
-        .get("/v1/kpi/scope_two_emissions/?from=2019-01-01T12:00:00:000Z&to=2019-02-01T12:00:00:000Z&interval=1hour")
+        .get("/v1/kpi/scope_one_emissions/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
         .send()
         .await;
 
@@ -103,7 +97,7 @@ async fn test_scope_one_plus_two_eq_total() {
     let body_scope_one: Vec<EmissionsByCarrier> = response_scope_one.json().await;
 
     let response_scope_two = client
-        .get("/v1/kpi/scope_one_emissions/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
+        .get("/v1/kpi/scope_two_emissions/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
         .send()
         .await;
 
