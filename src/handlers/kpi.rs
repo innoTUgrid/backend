@@ -379,6 +379,9 @@ pub async fn get_scope_two_emissions(
     Query(resampling): Query<Resampling>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
+    if !resampling.validate_interval() {
+        return Err(ApiError::InvalidInterval);
+    }
     let pg_resampling_interval = resampling.map_interval()?;
     //let pg_resampling_interval = resampling.interval;
     let from_timestamp = timestamp_filter.from.unwrap();
