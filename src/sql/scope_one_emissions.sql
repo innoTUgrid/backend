@@ -1,52 +1,49 @@
-with local_production as (
-    select
-        ts.series_timestamp as timestamp,
-        ts.series_value as value,
-        meta.identifier as identifier,
-        energy_carrier.name as energy_carrier,
-        emission_factor.factor as emission_factor,
-        emission_factor.unit as emission_factor_unit,
-        extract(epoch from (ts.series_timestamp - lag(ts.series_timestamp) over (order by ts.series_timestamp))) / 3600 as timestamp_distance
+-- 
+WITH aggregated_data AS (
+    SELECT
+        time_bucket($3::interval, ts.series_timestamp) AS bucket,
+        meta.identifier as source_of_production,
+        energy_carrier.name as production_carrier,
+        -- aggregations
+        avg(greatest(ts.series_value, 0.0)) AS production_mean,
+        sum(greatest(ts.series_value, 0.0)) AS production_sum,
+        NULLIF(COUNT(ts.series_value) FILTER (WHERE ts.series_value > 0),0) AS nr_of_records,
+        EXTRACT(epoch FROM $3::interval) / 3600 AS nr_of_hours,
+        -- average result equals actual emission factor for energy_carrier used by source_of_production
+        avg(emission_factor.factor) AS emission_factor,
+        emission_factor.unit AS emission_factor_unit,
+        meta.unit as production_unit
     from ts
         join meta on ts.meta_id = meta.id
         join energy_carrier on meta.carrier = energy_carrier.id
         join emission_factor on energy_carrier.id = emission_factor.carrier
     where
-        meta.consumption = false and
+        meta.consumption = false 
+        AND
         meta.local = true
-        and ts.series_timestamp between $1 and $2
-), kwh as (
-    select
-        timestamp,
-        value * timestamp_distance as production,
-        identifier,
-        energy_carrier,
-        emission_factor,
+        AND
+        ts.series_timestamp between $1 and $2
+    group by
+        bucket,
+        source_of_production,
+        production_carrier,
+        production_unit,
         emission_factor_unit
-    from local_production
-), production_with_emissions as (
-     select
-         time_bucket($3::interval, kwh.timestamp) as bucket,
-         kwh.identifier                           as source_of_production,
-         kwh.energy_carrier                       as production_carrier,
-         sum(greatest(kwh.production, 0.0))       as production,
-         kwh.emission_factor                      as emission_factor,
-         kwh.emission_factor_unit                 as emission_factor_unit
-     from kwh
-     group by
-         kwh.energy_carrier,
-         kwh.identifier,
-         time_bucket($3::interval, kwh.timestamp),
-         kwh.emission_factor,
-         kwh.emission_factor_unit
- )
-select
-    production_with_emissions.production * production_with_emissions.emission_factor as scope_one_emissions,
-    production_with_emissions.bucket as bucket,
-    production_with_emissions.source_of_production as source_of_production,
-    production_with_emissions.production_carrier as production_carrier,
-    production_with_emissions.production as production,
-    production_with_emissions.emission_factor_unit
-from
-    production_with_emissions
-order by bucket
+    order by bucket
+)
+SELECT 
+    bucket,
+    source_of_production,
+    production_carrier,
+    --production_unit,
+    -- average kwh produced in time bucket
+    production_sum / nr_of_records / nr_of_hours AS production,
+    (production_sum / nr_of_records) / nr_of_hours * emission_factor AS scope_one_emissions,
+    emission_factor_unit
+    --source_of_production,
+    --production_carrier,
+    --production_mean,
+    --production_sum,
+    --nr_of_records,
+    --nr_of_hours,
+FROM aggregated_data;
