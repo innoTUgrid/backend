@@ -41,7 +41,8 @@ timeseries:
     unit: "kW"
     description: "Grid Reference SMARD"
     consumption: true
-    local: false
+    # Considered local because this is the grid reference for locally consumed electricity
+    local: true
     carrier: "electricity"
   - identifier: "Production_of_PV"
     unit: "kW"
