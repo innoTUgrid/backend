@@ -80,7 +80,6 @@ pub async fn get_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
 ) -> Result<Json<Vec<ConsumptionByCarrier>>> {
-    let offset = resampling.hours_per_interval()?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -96,30 +95,39 @@ pub async fn get_consumption(
 
     let local_consumption_records: Vec<Consumption> = sqlx::query_file_as!(
         Consumption,
-        "src/sql/local_consumption.sql",
-        pg_resampling_interval,
+        "src/sql/local_production.sql",
         from_timestamp,
-        to_timestamp
+        to_timestamp,
+        pg_resampling_interval,
     )
     .fetch_all(&pool)
     .await?;
 
     let mut kpi_results: Vec<ConsumptionByCarrier> = vec![];
-
-    for record in [grid_consumption_records, local_consumption_records] {
-        for consumption in record {
-            let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-                * consumption.bucket_consumption.unwrap_or(0.0)
-                * offset;
-            let kpi_result = ConsumptionByCarrier {
-                bucket: consumption.bucket.unwrap(),
-                value: kpi_value,
-                carrier_name: consumption.carrier_name,
-                unit: String::from("kwh"),
-                local: false,
-            };
-            kpi_results.push(kpi_result);
-        }
+    // TODO: not very pretty, duplicate iteration is a code smell imo
+    for consumption in grid_consumption_records {
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
+            * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_result = ConsumptionByCarrier {
+            bucket: consumption.bucket.unwrap(),
+            value: kpi_value,
+            carrier_name: consumption.carrier_name,
+            unit: String::from("kwh"),
+            local: false,
+        };
+        kpi_results.push(kpi_result);
+    }
+    for consumption in local_consumption_records {
+        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
+            * consumption.bucket_consumption.unwrap_or(0.0);
+        let kpi_result = ConsumptionByCarrier {
+            bucket: consumption.bucket.unwrap(),
+            value: kpi_value,
+            carrier_name: consumption.carrier_name,
+            unit: String::from("kwh"),
+            local: true,
+        };
+        kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
 }
