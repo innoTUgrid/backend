@@ -44,34 +44,35 @@ pub async fn import<T: std::io::Read>(
             let mut meta_output: Result<TimeseriesMeta, sqlx::Error> = sqlx::query_as!(
                 TimeseriesMeta,
                 r"
-                insert into meta (identifier, unit, carrier, consumption, description)
-                select $1, $2, energy_carrier.id, $4, $5
+                insert into meta (identifier, unit, carrier, consumption, description, local)
+                select $1, $2, energy_carrier.id, $4, $5, $6
                 from energy_carrier
                 where energy_carrier.name = $3
-                returning id, identifier, unit, $3 as carrier, consumption, description",
+                returning id, identifier, unit, $3 as carrier, consumption, description, local",
                 &meta_input.identifier.to_lowercase(),
                 &meta_input.unit.to_lowercase(),
                 meta_input.carrier.as_deref().unwrap(),
                 meta_input.consumption.unwrap(),
                 meta_input.description.as_deref().unwrap(),
+                meta_input.local.unwrap_or(false),
             )
             .fetch_one(pool)
             .await;
 
             if meta_output.is_err() {
                 meta_output = sqlx::query_as!(
-                TimeseriesMeta,
-                r"
-                    select meta.id, identifier, unit, energy_carrier.name as carrier, consumption, description
-                    from meta
-                    inner join energy_carrier on energy_carrier.id = meta.carrier
-                    where identifier = $1 and unit = $2
-                    ",
-                &meta_input.identifier.to_lowercase(),
-                &meta_input.unit.to_lowercase(),
-            )
-            .fetch_one(pool)
-            .await;
+                    TimeseriesMeta,
+                    r"
+                        select meta.id, identifier, unit, energy_carrier.name as carrier, consumption, description, local
+                        from meta
+                        inner join energy_carrier on energy_carrier.id = meta.carrier
+                        where identifier = $1 and unit = $2
+                        ",
+                    &meta_input.identifier.to_lowercase(),
+                    &meta_input.unit.to_lowercase(),
+                )
+                .fetch_one(pool)
+                .await;
             };
 
             let meta_output = meta_output?;

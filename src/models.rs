@@ -58,6 +58,7 @@ pub struct TimeseriesMeta {
     pub carrier: Option<String>,
     pub consumption: Option<bool>,
     pub description: Option<String>,
+    pub local: Option<bool>,
 }
 
 #[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]

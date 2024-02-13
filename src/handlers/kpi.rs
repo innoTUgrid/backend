@@ -35,7 +35,7 @@ pub async fn get_consumption_production_ratio(
     let consumption: f64 = consumption_record.value.unwrap_or(1.0);
     let production: f64 = production_record.value.unwrap_or(1.0);
     let consumption_production_ratio = consumption / production;
-    return Ok(consumption_production_ratio);
+    Ok(consumption_production_ratio)
 }
 
 pub async fn get_self_consumption(
