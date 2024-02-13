@@ -13,52 +13,61 @@ use axum::Json;
 use sqlx::{Pool, Postgres};
 use std::string::String;
 
+pub async fn get_consumption_production_ratio(
+    timestamp_filter: &TimestampFilter,
+    pool: &Pool<Postgres>,
+) -> Result<f64> {
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let consumption_record = sqlx::query_file!(
+        "src/sql/total_consumption.sql",
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_one(pool)
+    .await?;
+
+    let production_record =
+        sqlx::query_file!("src/sql/total_production.sql", from_timestamp, to_timestamp,)
+            .fetch_one(pool)
+            .await?;
+    let consumption: f64 = consumption_record.value.unwrap_or(1.0);
+    let production: f64 = production_record.value.unwrap_or(1.0);
+    let consumption_production_ratio = consumption / production;
+    return Ok(consumption_production_ratio);
+}
+
 pub async fn get_self_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<KpiResult>> {
-    let from_timestamp = timestamp_filter.from.unwrap();
-    let to_timestamp = timestamp_filter.to.unwrap();
-    let consumption_record = sqlx::query!(
-        r"
-        select
-            sum(series_value) as value
-        from ts
-            join meta m on ts.meta_id = m.id
-        where
-            m.consumption = true and
-            m.identifier = 'total_load' and
-            ts.series_timestamp between $1::timestamptz and $2::timestamptz
-        ",
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_one(&pool)
-    .await?;
-
-    let production_record = sqlx::query!(
-        r"
-        select sum(series_value) as value
-        from ts
-            join meta m on ts.meta_id = m.id
-        where
-            m.consumption = false and
-            ts.series_timestamp between $1::timestamptz and $2::timestamptz
-        ",
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_one(&pool)
-    .await?;
-    let consumption: f64 = consumption_record.value.unwrap_or(1.0);
-    let production: f64 = production_record.value.unwrap_or(1.0);
-    let self_consumption = f64::min(consumption / production, 1.0);
+    let consumption_production_ratio =
+        get_consumption_production_ratio(&timestamp_filter, &pool).await?;
+    let self_consumption = f64::min(consumption_production_ratio, 1.0);
     let kpi_result = KpiResult {
         value: self_consumption,
         name: String::from("self_consumption"),
         unit: None,
-        from_timestamp,
-        to_timestamp,
+        from_timestamp: timestamp_filter.from.unwrap(),
+        to_timestamp: timestamp_filter.to.unwrap(),
+    };
+    Ok(Json(kpi_result))
+}
+
+pub async fn get_autarky(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<KpiResult>> {
+    let consumption_production_ratio =
+        get_consumption_production_ratio(&timestamp_filter, &pool).await?;
+    let autarky = f64::min(1.0 / consumption_production_ratio, 1.0);
+    let kpi_result = KpiResult {
+        value: autarky,
+        name: String::from("autarky"),
+        unit: None,
+        from_timestamp: timestamp_filter.from.unwrap(),
+        to_timestamp: timestamp_filter.to.unwrap(),
     };
     Ok(Json(kpi_result))
 }
@@ -96,32 +105,21 @@ pub async fn get_consumption(
     .await?;
 
     let mut kpi_results: Vec<ConsumptionByCarrier> = vec![];
-    // TODO: not very pretty, duplicate iteration is a code smell imo
-    for consumption in grid_consumption_records {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0)
-            * offset;
-        let kpi_result = ConsumptionByCarrier {
-            bucket: consumption.bucket.unwrap(),
-            value: kpi_value,
-            carrier_name: consumption.carrier_name,
-            unit: String::from("kwh"),
-            local: false,
-        };
-        kpi_results.push(kpi_result);
-    }
-    for consumption in local_consumption_records {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0)
-            * offset;
-        let kpi_result = ConsumptionByCarrier {
-            bucket: consumption.bucket.unwrap(),
-            value: kpi_value,
-            carrier_name: consumption.carrier_name,
-            unit: String::from("kwh"),
-            local: true,
-        };
-        kpi_results.push(kpi_result);
+
+    for record in [grid_consumption_records, local_consumption_records] {
+        for consumption in record {
+            let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
+                * consumption.bucket_consumption.unwrap_or(0.0)
+                * offset;
+            let kpi_result = ConsumptionByCarrier {
+                bucket: consumption.bucket.unwrap(),
+                value: kpi_value,
+                carrier_name: consumption.carrier_name,
+                unit: String::from("kwh"),
+                local: false,
+            };
+            kpi_results.push(kpi_result);
+        }
     }
     Ok(Json(kpi_results))
 }
@@ -129,35 +127,19 @@ pub async fn get_consumption(
 pub async fn get_total_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
-    Query(resampling): Query<Resampling>,
 ) -> Result<Json<KpiResult>, ApiError> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
-    let pg_resampling_interval = resampling.map_interval()?;
 
-    let consumption_record = sqlx::query!(
-        r"
-            select sum(subquery.mean_value) as value from 
-                (select
-                    time_bucket($3::interval, ts.series_timestamp) as bucket,
-                    avg(ts.series_value) as mean_value 
-                from ts
-                    join meta m on ts.meta_id = m.id
-                where 
-                m.identifier = 'total_load' and
-                ts.series_timestamp >= $1 and ts.series_timestamp <= $2
-                group by bucket
-                order by bucket) subquery
-        ",
+    let consumption_record = sqlx::query_file!(
+        "src/sql/total_consumption.sql",
         from_timestamp,
         to_timestamp,
-        pg_resampling_interval,
     )
     .fetch_one(&pool)
     .await?;
 
-    let consumption: f64 =
-        consumption_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let consumption: f64 = consumption_record.value.unwrap_or(0.0);
     let kpi_result = KpiResult {
         value: consumption,
         name: String::from("total_consumption"),
@@ -173,96 +155,20 @@ pub async fn get_total_consumption(
 pub async fn get_total_production(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
-    Query(resampling): Query<Resampling>,
 ) -> Result<Json<KpiResult>, ApiError> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
-    let pg_resampling_interval = resampling.map_interval()?;
 
-    let production_record = sqlx::query!(
-        r"
-            select 
-                sum(subquery.sum_production) as value 
-            from (
-                select
-                    time_bucket($1::interval, ts.series_timestamp) as bucket,
-                    sum(ts.series_value) as sum_production 
-                from ts
-                    join meta m on ts.meta_id = m.id
-                where 
-                    m.consumption = false 
-                    and
-                    ts.series_timestamp between $2 and $3
-                group by bucket
-                order by bucket
-            ) subquery
-        ",
-        pg_resampling_interval,
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_one(&pool)
-    .await?;
+    let production_record =
+        sqlx::query_file!("src/sql/total_production.sql", from_timestamp, to_timestamp,)
+            .fetch_one(&pool)
+            .await?;
 
-    let production: f64 =
-        production_record.value.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let production: f64 = production_record.value.unwrap_or(0.0);
     let kpi_result = KpiResult {
         value: production,
         name: String::from("total_production"),
         unit: Some(String::from("kwh")),
-        from_timestamp,
-        to_timestamp,
-    };
-    Ok(Json(kpi_result))
-}
-
-pub async fn get_autarky(
-    Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
-) -> Result<Json<KpiResult>> {
-    let from_timestamp = timestamp_filter.from.unwrap();
-    let to_timestamp = timestamp_filter.to.unwrap();
-
-    let consumption_record = sqlx::query!(
-        r"
-        select
-            sum(series_value) as value
-        from ts
-            join meta m on ts.meta_id = m.id
-        where
-            m.consumption = true and
-            m.identifier = 'total_load' and
-            ts.series_timestamp between $1::timestamptz and $2::timestamptz
-        ",
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_one(&pool)
-    .await?;
-
-    let production_record = sqlx::query!(
-        r"
-        select
-            sum(series_value) as value
-        from ts
-            join meta m on ts.meta_id = m.id
-        where
-            m.consumption = false and
-            ts.series_timestamp between $1::timestamptz and $2::timestamptz
-        ",
-        from_timestamp,
-        to_timestamp,
-    )
-    .fetch_one(&pool)
-    .await?;
-
-    let consumption: f64 = consumption_record.value.unwrap_or(1.0);
-    let production: f64 = production_record.value.unwrap_or(1.0);
-    let autarky = f64::min(production / consumption, 1.0);
-    let kpi_result = KpiResult {
-        value: autarky,
-        name: String::from("autarky"),
-        unit: None,
         from_timestamp,
         to_timestamp,
     };
