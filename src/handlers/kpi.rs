@@ -267,7 +267,6 @@ pub async fn get_scope_one_emissions(
     .await?;
 
     let mut kpi_results: Vec<EmissionsByCarrier> = vec![];
-    let _offset = resampling.hours_per_interval()?;
     for production in production_record {
         let kpi_result = EmissionsByCarrier {
             bucket: production.bucket.unwrap(),
@@ -331,35 +330,45 @@ pub async fn get_total_co2_emissions(
     let to_timestamp = timestamp_filter.to.unwrap();
     let pg_resampling_interval = resampling.map_interval()?;
 
-    let result = sqlx::query!(
-        r"
-        select 
-            sum(subquery.total_co2_emissions) as total_co2_emissions
-        from (
-            select
-                time_bucket($1, ts.series_timestamp) as bucket,
-                -- total co2 emissions
-                (avg(greatest(ts.series_value, 0.0)) * avg(emission_factor.factor)) as total_co2_emissions
-            from ts
-                join meta on ts.meta_id = meta.id
-                join energy_carrier on meta.carrier = energy_carrier.id
-                join emission_factor on energy_carrier.id = emission_factor.carrier
-            where
-                ts.series_timestamp between $2 and $3
-            group by
-                bucket
-            order by bucket
-        ) subquery;
-        ",
-        pg_resampling_interval,
+    // TODO: refactor to use a single query
+    // we use our two existing queries to get scope one and scope two emissions
+    // and sum them up to get the total co2 emissions
+    //
+    // we should use a single query to get the total co2 emissions instead
+    let scope_one_emissions: Vec<ProductionWithEmissions> = sqlx::query_file_as!(
+        ProductionWithEmissions,
+        "src/sql/scope_one_emissions.sql",
         from_timestamp,
-        to_timestamp
+        to_timestamp,
+        pg_resampling_interval,
     )
-    .fetch_one(&pool)
+    .fetch_all(&pool)
     .await?;
 
-    let co2_emissions: f64 =
-        result.total_co2_emissions.unwrap_or(0.0) * resampling.hours_per_interval()?;
+    let scope_two_emissions = sqlx::query_file_as!(
+        ConsumptionWithEmissions,
+        "src/sql/scope_two_emissions.sql",
+        pg_resampling_interval,
+        from_timestamp,
+        to_timestamp,
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut co2_emissions = 0.0;
+    let offset = resampling.hours_per_interval()?;
+
+    for consumption in scope_two_emissions {
+        co2_emissions += consumption.bucket_consumption.unwrap_or(0.0)
+            * consumption.carrier_proportion.unwrap_or(1.0)
+            * consumption.emission_factor
+            * offset;
+    }
+
+    for production in scope_one_emissions {
+        co2_emissions += production.scope_one_emissions.unwrap_or(0.0);
+    }
+
     let kpi_result = KpiResult {
         value: co2_emissions,
         name: String::from("total_co2_emissions"),

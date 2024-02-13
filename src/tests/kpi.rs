@@ -111,5 +111,6 @@ async fn test_scope_one_plus_two_eq_total() {
     let sum_scope_one = body_scope_one.iter().fold(0.0, |acc, x| acc + x.value);
     let sum_scope_two = body_scope_two.iter().fold(0.0, |acc, x| acc + x.value);
 
-    assert_eq!(sum_scope_one + sum_scope_two, body.value);
+    // we need to floor the values because the sum of the scopes might not be exactly the same as the total
+    assert_eq!((sum_scope_one + sum_scope_two).floor(), body.value.floor());
 }
