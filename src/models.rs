@@ -303,6 +303,11 @@ impl Resampling {
                 microseconds: 0,
                 days: num_part,
             },
+            "week" => PgInterval {
+                months: 0,
+                microseconds: 0,
+                days: 7 * num_part,
+            },
             "min" => PgInterval {
                 months: 0,
                 microseconds: (num_part * 60 * 1000) as i64,
