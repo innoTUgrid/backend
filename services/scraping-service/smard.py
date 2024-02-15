@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from dateutil.parser import parse
 
 from logging import getLogger
+from env import API_URL
 
 logger = getLogger(__name__)
 logging.basicConfig(
@@ -38,8 +39,8 @@ class SmardScraper(Scraper):
         self.smard_max_timestamp = datetime.fromisoformat("2021-01-01T00:00:00Z").timestamp() * 1000
         # TODO: this will not work on a linux docker deployment
         # TODO: we should probably read out the urls from other services in a smarter way e.g. through env variables
-        self.DATA_SERVICE_TS_ENDPOINT = f"http://host.docker.internal:3000/v1/ts/"
-        self.DATA_SERVICE_META_ENDPOINT = f"http://host.docker.internal:3000/v1/meta/"
+        self.DATA_SERVICE_TS_ENDPOINT = f"{API_URL}/v1/ts/"
+        self.DATA_SERVICE_META_ENDPOINT = f"{API_URL}/v1/meta/"
 
     def run(self, filter_value="4169", region="DE", resolution="hour"):
         """Scrape the SMARD API for the given parameters and store a list of datapoints"""
