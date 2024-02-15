@@ -34,6 +34,7 @@ services:
 
   smardscraper:
     container_name: smard
+    image: ghcr.io/innotugrid/scraping-service:main
     build:
       context: ./services/scraping-service
       dockerfile: Dockerfile
