@@ -1,6 +1,8 @@
 import logging
 
 import requests
+import schedule
+import time
 
 from scraper import Scraper
 from datetime import datetime, timezone, timedelta
@@ -31,8 +33,6 @@ class SmardScraper(Scraper):
         """Raw responses for a given year"""
         self.datapoints = []
         """Formatted datapoints for a given year"""
-        self.last_scrape = None
-        """Timestamp of the last scrape"""
         self.data_service_max_timestamp = None
         """Current oldest timestamp of the series in the data service"""
         self.smard_min_timestamp = datetime.fromisoformat("2019-01-01T00:00:00Z").timestamp() * 1000
@@ -44,11 +44,6 @@ class SmardScraper(Scraper):
 
     def run(self, filter_value="4169", region="DE", resolution="hour"):
         """Scrape the SMARD API for the given parameters and store a list of datapoints"""
-
-        current_timestamp = datetime.now(timezone.utc)
-        time_difference = current_timestamp - self.last_scrape if self.last_scrape else timedelta(hours=2)
-        if time_difference < timedelta(hours=1):
-            return
 
         if self.series_exists():
             metadata = self.get_series_metadata()
@@ -145,5 +140,11 @@ class SmardScraper(Scraper):
 
 if __name__ == "__main__":
     scraper = SmardScraper()
+
+    # run scraper once, then every hour
+    scraper.run()
+    schedule.every().hour.do(scraper.run)
+
     while True:
-        scraper.run()
+        schedule.run_pending()
+        time.sleep(1)
