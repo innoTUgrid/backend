@@ -6,7 +6,11 @@ with local_production as (
         ts.series_timestamp as timestamp,
         ts.series_value as value,
         meta.identifier as identifier,
-        extract(epoch from (ts.series_timestamp - lag(ts.series_timestamp) over (order by ts.series_timestamp))) / 3600 as timestamp_distance
+        CASE
+            WHEN LAG(ts.series_timestamp) OVER (PARTITION BY ts.meta_id ORDER BY ts.series_timestamp) IS NOT NULL 
+            THEN extract(epoch from (ts.series_timestamp - lag(ts.series_timestamp) over (PARTITION BY ts.meta_id order by ts.series_timestamp))) / 3600
+            ELSE extract(epoch from (LEAD(ts.series_timestamp) OVER (PARTITION BY ts.meta_id order by ts.series_timestamp)) - ts.series_timestamp) / 3600
+        END AS timestamp_distance
     from ts
              join meta on ts.meta_id = meta.id
     where
