@@ -39,10 +39,9 @@ services:
       context: ./services/scraping-service
       dockerfile: Dockerfile
       network: host
-    volumes:
-      - ./services/scraping-service:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - API_URL=http://app:3000
     depends_on:
       - db
 volumes:
