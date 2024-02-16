@@ -93,7 +93,7 @@ pub async fn get_consumption(
     .fetch_all(&pool)
     .await?;
 
-    let local_consumption_records: Vec<Consumption> = sqlx::query_file_as!(
+    let local_production_records: Vec<Consumption> = sqlx::query_file_as!(
         Consumption,
         "src/sql/local_production.sql",
         from_timestamp,
@@ -117,13 +117,13 @@ pub async fn get_consumption(
         };
         kpi_results.push(kpi_result);
     }
-    for consumption in local_consumption_records {
-        let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
-            * consumption.bucket_consumption.unwrap_or(0.0);
+    for production in local_production_records {
+        let kpi_value = production.carrier_proportion.unwrap_or(1.0)
+            * production.bucket_consumption.unwrap_or(0.0);
         let kpi_result = ConsumptionByCarrier {
-            bucket: consumption.bucket.unwrap(),
+            bucket: production.bucket.unwrap(),
             value: kpi_value,
-            carrier_name: consumption.carrier_name,
+            carrier_name: production.carrier_name,
             unit: String::from("kwh"),
             local: true,
         };

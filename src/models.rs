@@ -475,7 +475,7 @@ fn test_map_interval() {
         PgInterval {
             months: 0,
             days: 0,
-            microseconds: 60 * 1000 * 60
+            microseconds: 60 * 1000000 * 60
         }
     );
 
@@ -488,7 +488,7 @@ fn test_map_interval() {
         PgInterval {
             months: 0,
             days: 0,
-            microseconds: 30 * 60 * 1000
+            microseconds: 30 * 60 * 1000000
         }
     );
 

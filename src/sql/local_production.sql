@@ -1,4 +1,4 @@
--- was local_consumption before, but is local_production, that is locally consumed energy (?)
+-- get sum of energy in kWh produced by each local producer during time imterval
 with local_production as (
     select
         ts.series_timestamp as timestamp,
