@@ -1,9 +1,7 @@
 use crate::error::ApiError;
+use crate::models::EmissionFactorSource;
 use crate::models::KpiResult;
-use crate::models::{
-    Consumption, ConsumptionByCarrier, EmissionsByCarrier, Resampling, Result,
-};
-use crate::models::{EmissionFactorSource};
+use crate::models::{Consumption, ConsumptionByCarrier, EmissionsByCarrier, Resampling, Result};
 
 use crate::models::TimestampFilter;
 
