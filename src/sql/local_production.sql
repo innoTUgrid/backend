@@ -38,4 +38,3 @@ group by
     carrier_name,
     consumption_unit
 order by bucket
-    

@@ -12,10 +12,10 @@ with local_production as (
             ELSE extract(epoch from (LEAD(ts.series_timestamp) OVER (PARTITION BY ts.meta_id order by ts.series_timestamp)) - ts.series_timestamp) / 3600
         END AS timestamp_distance
     from ts
-             join meta on ts.meta_id = meta.id
+            join meta on ts.meta_id = meta.id
     where
         meta.consumption = false
-      and ts.series_timestamp between $1 and $2
+        and ts.series_timestamp between $1 and $2
 ), local_production_kwh as (
     select
         timestamp,

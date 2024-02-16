@@ -17,7 +17,7 @@ select id,
        (select avg(emission_factor.factor)
         from emission_factor
                  join energy_carrier on emission_factor.carrier = energy_carrier.id
-        where energy_carrier.name in ('solar', 'hydro', 'biomass', 'biogas', 'biomass', 'onwind', 'offwind')
+        where energy_carrier.name in ('solar', 'hydro', 'biomass', 'biogas', 'onwind', 'offwind')
        )
         , 'kgco2eq/kwh', 'IPCC', null
 from energy_carrier where energy_carrier.name = 'other_renewable';
@@ -28,7 +28,7 @@ select id,
        (select avg(emission_factor.factor)
         from emission_factor
                  join energy_carrier on emission_factor.carrier = energy_carrier.id
-        where energy_carrier.name in ('solar', 'hydro', 'biomass', 'biogas', 'biomass', 'onwind', 'offwind')
+        where energy_carrier.name in ('solar', 'hydro', 'biomass', 'biogas', 'onwind', 'offwind')
        )
         , 'kgco2eq/kwh', 'IPCC', null
 from energy_carrier where energy_carrier.name = 'pumped_storage';
