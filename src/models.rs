@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::postgres::types::PgInterval;
+use sqlx::{Pool, Postgres};
 use std::fmt::Formatter;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -322,27 +323,6 @@ impl Resampling {
         let pattern = Regex::new(r"^\d+(min|day|week|month|year|hour)$").expect("Invalid interval");
         pattern.is_match(&self.interval)
     }
-
-    pub fn hours_per_interval(&self) -> std::result::Result<f64, anyhow::Error> {
-        let re = Regex::new(r"(\d+)(\w+)").unwrap();
-        let caps = re
-            .captures(&self.interval)
-            .ok_or_else(|| anyhow!("Invalid interval format"))?;
-        let num_part = caps.get(1).map_or("", |m| m.as_str()).parse::<f64>()?;
-        let unit_part = caps.get(2).map_or("", |m| m.as_str());
-
-        let hours_per_period = match unit_part {
-            "min" => num_part / 60.0,
-            "hour" => num_part,
-            "day" => num_part * 24.0,
-            "week" => num_part * 24.0 * 7.0,
-            "month" => num_part * 24.0 * 30.0, // approximately
-            "year" => num_part * 24.0 * 365.0, // approximately
-            _ => return Err(anyhow!("invalid interval format")),
-        };
-
-        Ok(hours_per_period)
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -377,20 +357,6 @@ impl Default for TimestampFilter {
         }
     }
 }
-/*
-#[derive(Debug, Deserialize)]
-pub struct IdentifiersQuery {
-    identifiers: Vec<String>,
-}
-*/
-
-#[derive(Debug, Deserialize)]
-pub enum Kpi {
-    #[serde(rename = "self_consumption")]
-    SelfConsumption,
-    #[serde(rename = "local_emissions")]
-    LocalEmissions,
-}
 
 // intermediate struct to hold results for local consumption of grid electricity
 pub struct Consumption {
@@ -412,17 +378,6 @@ pub struct ProductionWithEmissions {
     pub emission_factor_unit: String,
 }
 
-// struct to hold intermediate results for scope two emission kpi
-pub struct ConsumptionWithEmissions {
-    pub bucket: Option<OffsetDateTime>,
-    pub bucket_consumption: Option<f64>,
-    pub consumption_unit: String,
-    pub carrier_proportion: Option<f64>,
-    pub carrier_name: String,
-    pub emission_factor: f64,
-    pub emission_unit: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KpiResult {
     pub value: f64,
@@ -436,11 +391,11 @@ pub struct KpiResult {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmissionsByCarrier {
-    #[serde(with = "time::serde::rfc3339")]
-    pub bucket: OffsetDateTime,
-    pub carrier_name: String,
-    pub value: f64,
-    pub unit: String,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub bucket: Option<OffsetDateTime>,
+    pub carrier_name: Option<String>,
+    pub value: Option<f64>,
+    pub unit: Option<String>,
 }
 #[derive(Debug, Serialize)]
 pub struct ConsumptionByCarrier {
@@ -452,17 +407,36 @@ pub struct ConsumptionByCarrier {
     pub local: bool,
 }
 
-// struct to hold intermediate results for co2 savings kpi calculation
-pub struct Co2Savings {
-    pub bucket: Option<OffsetDateTime>,
-    pub local_emissions: Option<f64>,
-    pub hypothetical_emissions: Option<f64>,
-    pub production_unit: String,
-    pub local_emission_factor_unit: String,
-    pub grid_emission_factor_unit: String,
+#[derive(Debug, Deserialize)]
+pub struct EmissionFactorSource {
+    #[serde(default = "EmissionFactorSource::default_source")]
+    pub source: String,
 }
-// compute the number of hours per period for watt to watt hour conversions taking into account different
-// resampling intervals
+impl Default for EmissionFactorSource {
+    fn default() -> Self {
+        Self {
+            source: String::from("IPCC"),
+        }
+    }
+}
+impl EmissionFactorSource {
+    pub async fn get_source_or_default(&self, pool: &Pool<Postgres>) -> Result<String, ApiError> {
+        let source_exists: (bool,) = sqlx::query_as(
+            "select exists (select 1 from emission_factor where emission_factor.source = $1)",
+        )
+        .bind(&self.source)
+        .fetch_one(pool)
+        .await?;
+        if source_exists.0 {
+            Ok(self.source.clone())
+        } else {
+            Ok(EmissionFactorSource::default().source)
+        }
+    }
+    fn default_source() -> String {
+        String::from("IPCC")
+    }
+}
 
 #[test]
 fn test_map_interval() {
@@ -497,13 +471,4 @@ fn test_map_interval() {
     };
 
     assert!(resample.map_interval().is_err());
-}
-
-#[test]
-fn test_hours_per_period() {
-    let resample = Resampling {
-        interval: String::from("2month"),
-    };
-
-    assert_eq!(resample.hours_per_interval().unwrap(), 1440.0);
 }

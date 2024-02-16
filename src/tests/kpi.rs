@@ -33,7 +33,7 @@ async fn test_get_total_consumption() {
     let client = get_client().await;
 
     let response = client
-        .get("/v1/kpi/total_consumption/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
+        .get("/v1/kpi/total_consumption/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour?source=IPCC")
         .send()
         .await;
 
@@ -46,7 +46,7 @@ async fn test_get_total_co2_emissions() {
     let client = get_client().await;
 
     let response = client
-        .get("/v1/kpi/total_co2_emissions/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour")
+        .get("/v1/kpi/total_co2_emissions/?from=2019-01-01T12:00:00Z&to=2019-02-01T12:00:00Z&interval=1hour&source=IPCC")
         .send()
         .await;
 
@@ -108,8 +108,12 @@ async fn test_scope_one_plus_two_eq_total() {
     assert!(response.status().is_success());
     let body: KpiResult = response.json().await;
 
-    let sum_scope_one = body_scope_one.iter().fold(0.0, |acc, x| acc + x.value);
-    let sum_scope_two = body_scope_two.iter().fold(0.0, |acc, x| acc + x.value);
+    let sum_scope_one = body_scope_one
+        .iter()
+        .fold(0.0, |acc, x| acc + x.value.unwrap());
+    let sum_scope_two = body_scope_two
+        .iter()
+        .fold(0.0, |acc, x| acc + x.value.unwrap());
 
     // we need to floor the values because the sum of the scopes might not be exactly the same as the total
     assert_eq!((sum_scope_one + sum_scope_two).floor(), body.value.floor());
