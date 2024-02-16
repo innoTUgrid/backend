@@ -310,7 +310,7 @@ impl Resampling {
             },
             "min" => PgInterval {
                 months: 0,
-                microseconds: (num_part * 60 * 1000) as i64,
+                microseconds: num_part as i64 * 60 * 1000000,
                 days: 0,
             },
             _ => return Err(anyhow!("invalid interval format")),
