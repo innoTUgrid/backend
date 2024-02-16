@@ -1,86 +1,86 @@
--- co2 savings
--- first query computes the total local renewable energy production in kwh per energy carrier
--- second query computes the grid proportions per energy carrier together with an emission factor per carrier
--- the co2 savings are the difference between the hypothetical and the actual local emissions
--- TODO: think about how different aggregation periods are meaningful here
--- TODO: missing energy carrier for combined heating and power?
+/*
+CO2 savings are the difference between hypothetical and actual local emissions.
+Hypothetical emissions are derived from taking the local electricity production and calculating
+hypothetical emissions given the energy mix from SMARD, i.e. what if we did not produce any electricity
+locally and bought the electricity from the market.
+*/
+with total_sum as (
+    select
+        time_bucket($3, ts.series_timestamp) as bucket,
+        sum(ts.series_value) as total
+    from ts
+             join meta on ts.meta_id = meta.id
+             join energy_carrier on meta.carrier = energy_carrier.id
+    where
+        meta.consumption = true and
+        meta.local = false and
+        ts.series_timestamp between $1 and $2
+
+    group by
+        bucket
+), carrier_sum as (
+    select
+        time_bucket($3, ts.series_timestamp) as bucket,
+        meta.carrier as carrier,
+        sum(ts.series_value) as carrier_total
+    from ts
+             join meta on ts.meta_id = meta.id
+    where
+        meta.consumption = true and
+        meta.local = false and
+        ts.series_timestamp between $1 and $2
+    group by
+        bucket,
+        carrier
+
+), grid_proportion as (
+    select
+        carrier_sum.bucket as bucket,
+        carrier,
+        carrier_total / total AS proportion
+    from carrier_sum
+             join total_sum on carrier_sum.bucket = total_sum.bucket
+), local_production_by_carrier as (
+    select
+        ts.series_timestamp as timestamp,
+        ts.series_value as value,
+        meta.carrier as carrier,
+        case
+            when lag(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp) is not null
+                then extract(epoch from (ts.series_timestamp - lag(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp))) / 3600
+            else extract(epoch from (lead(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp)) - ts.series_timestamp) / 3600
+            end as timestamp_distance
+    from ts
+             join meta on ts.meta_id = meta.id
+    where
+        meta.consumption = false and
+        meta.local = true and
+        ts.series_timestamp between $1 and $2
+), production as (
+    select
+        time_bucket($3::interval, timestamp) as bucket,
+        local_production_by_carrier.carrier as carrier,
+        sum(greatest(value * timestamp_distance, 0)) as production
+    from
+        local_production_by_carrier
+    group by
+        bucket,
+        local_production_by_carrier.carrier
+), emissions as (
+    select
+        factor,
+        carrier
+    from emission_factor
+    where emission_factor.source = $4
+), savings as (
+    select production.bucket as bucket,
+           sum(production.production * grid_proportion.proportion * emissions.factor) as hypothetical_emissions,
+           avg(production.production * emissions.factor) as actual_emissions
+    from production
+             join grid_proportion on production.bucket = grid_proportion.bucket join emissions on grid_proportion.carrier = emissions.carrier
+    group by production.bucket
+)
 select
-    total_local_production.bucket as bucket,
-    -- average since there are multiple buckets for every carrier 
-    avg(total_local_production.production * total_local_production.production_emission_factor) as local_emissions,
-    sum(production * carrier_proportion * emission_factor) as hypothetical_emissions,
-    total_local_production.production_unit as production_unit,
-    total_local_production.emission_factor_unit as local_emission_factor_unit,
-    grid_proportions.emission_factor_unit as grid_emission_factor_unit
-from (
-        -- compute the local energy production
-        select
-            time_bucket($1, ts.series_timestamp) as bucket,
-            greatest(avg(ts.series_value), 0) as production,
-            energy_carrier.name as production_carrier,
-            meta.unit as production_unit,
-            emission_factor.factor as production_emission_factor,
-            emission_factor.unit as emission_factor_unit
-        from ts
-            join meta on ts.meta_id = meta.id
-            join energy_carrier on meta.carrier = energy_carrier.id
-            join emission_factor on emission_factor.carrier = energy_carrier.id
-        where
-            meta.consumption = false and
-            ts.series_timestamp between $2 and $3
-        group by
-            bucket,
-            production_carrier,
-            production_unit,
-            production_emission_factor,
-            emission_factor_unit
-        order by bucket
-    )  as total_local_production inner join
-    (
-        -- compute the grid proportions per energy carrier
-        select
-            time_bucket($1, ts.series_timestamp) as bucket,
-            sum(ts.series_value) / total.total_sum as carrier_proportion,
-            energy_carrier.name as carrier_name,
-            emission_factor.factor as emission_factor,
-            emission_factor.unit as emission_factor_unit
-        from ts
-            join meta on ts.meta_id = meta.id
-            join energy_carrier on meta.carrier = energy_carrier.id
-            join emission_factor on energy_carrier.id = emission_factor.carrier
-            join (
-                select
-                    time_bucket($1, ts.series_timestamp) as inner_bucket,
-                    sum(series_value) as total_sum
-                from ts
-                    join meta on ts.meta_id = meta.id
-                    join energy_carrier on meta.carrier = energy_carrier.id
-                where
-                    meta.consumption = true and
-                    -- exclude carrier of type 'electricity' since it is already included in total_load
-                    energy_carrier.name != 'electricity' and
-                    ts.series_timestamp between $2 and $3
-                group by
-                    inner_bucket
-                order by
-                    inner_bucket
-            ) as total on total.inner_bucket = time_bucket($1, ts.series_timestamp)
-        where
-            meta.consumption = true and
-            energy_carrier.name != 'electricity' and
-            ts.series_timestamp between $2 and $3
-        group by
-            bucket,
-            total.total_sum,
-            carrier_name,
-            emission_factor,
-            emission_factor_unit
-        order by
-            bucket
-    )  as grid_proportions on total_local_production.bucket = grid_proportions.bucket
-group by
-    total_local_production.bucket,
-    production_unit,
-    local_emission_factor_unit,
-    grid_emission_factor_unit
-order by total_local_production.bucket
+    sum(hypothetical_emissions - actual_emissions) as co2_savings
+from savings;
+
