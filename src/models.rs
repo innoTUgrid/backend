@@ -290,7 +290,7 @@ impl Resampling {
             },
             "hour" => PgInterval {
                 months: 0,
-                microseconds: (num_part * 60 * 60 * 1000) as i64,
+                microseconds: num_part as i64 * 60 * 60 * 1000000,
                 days: 0,
             },
             "year" => PgInterval {
