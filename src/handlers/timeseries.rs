@@ -75,7 +75,7 @@ pub async fn get_timeseries_by_identifier(
         TimeseriesMeta,
         r#"
         select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description, local
-        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        from meta left join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
         identifier,
     )
