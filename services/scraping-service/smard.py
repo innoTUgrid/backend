@@ -95,7 +95,6 @@ class SmardScraper(Scraper):
             logger.info("%d for timestamp %s from SMARD" % (
             timeseries_response.status_code, datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc).isoformat()))
             timeseries_responses.append(timeseries_response.json()["series"])
-        self.last_scrape = datetime.now(timezone.utc)
         logger.info("Trying to write %d responses" % len(timeseries_responses))
         for responses in timeseries_responses:
             for response in responses:
@@ -112,6 +111,7 @@ class SmardScraper(Scraper):
             }
             for datapoint in self.datapoints
         ]
+
         response = requests.post(
             self.DATA_SERVICE_TS_ENDPOINT,
             json={"timeseries": data_json}
