@@ -52,8 +52,7 @@ from electricity_price_bucket
 )
 select
     sum(value) as cost_savings
-from intermediate
-group by intermediate.bucket
+from intermediate;
 
 
 
