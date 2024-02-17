@@ -101,7 +101,6 @@ pub async fn get_consumption(
     .await?;
 
     let mut kpi_results: Vec<ConsumptionByCarrier> = vec![];
-    // TODO: not very pretty, duplicate iteration is a code smell imo
     for consumption in grid_consumption_records {
         let kpi_value = consumption.carrier_proportion.unwrap_or(1.0)
             * consumption.bucket_consumption.unwrap_or(0.0);

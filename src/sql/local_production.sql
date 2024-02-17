@@ -1,4 +1,4 @@
--- get sum of energy in kWh produced by each local producer during time imterval
+-- get sum of energy in kWh produced by each local producer during time interval
 with local_production as (
     select
         ts.series_timestamp as timestamp,

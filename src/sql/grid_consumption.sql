@@ -1,3 +1,6 @@
+-- 
+-- calc energy in kWh consumed via SMARD by each carrier and its percentage in the energy mix during each interval
+--
 with local_consumption_intermediate as (
     select
         ts.series_timestamp as timestamp,
@@ -11,7 +14,7 @@ with local_consumption_intermediate as (
     from ts
         join meta on ts.meta_id = meta.id
     where
-        meta.identifier = 'grid_reference_smard' 
+        meta.identifier = 'grid_reference_smard'
         and
         ts.series_timestamp between $2 and $3
 ), 
