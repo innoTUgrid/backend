@@ -18,14 +18,21 @@ pub async fn resample_timeseries_by_identifier(
     Query(timestamp_filter): Query<TimestampFilter>,
 ) -> Result<Json<ResampledTimeseries>> {
     let pg_resampling_interval = resampling.map_interval()?;
-    let metadata = sqlx::query_as!(
-        TimeseriesMeta,
+    let metadata = sqlx::query_as::<_, TimeseriesMeta>(
         r#"
-        select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description, local
-        from meta join energy_carrier on meta.carrier = energy_carrier.id
+        select
+            meta.id as id,
+            identifier,
+            unit,
+            energy_carrier.name as carrier,
+            consumption,
+            description,
+            local
+        from meta
+            left join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
-        identifier,
     )
+    .bind(identifier)
     .fetch_one(&pool)
     .await?;
 
@@ -40,8 +47,8 @@ pub async fn resample_timeseries_by_identifier(
             avg(ts.series_value) as mean_value
         from ts
         where ts.meta_id = $1
-        and ts.series_timestamp >= $3
-        and ts.series_timestamp <= $4
+            and ts.series_timestamp >= $3
+            and ts.series_timestamp <= $4
         group by bucket
         order by bucket
         "#,
