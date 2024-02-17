@@ -71,14 +71,12 @@ pub async fn get_timeseries_by_identifier(
     // we do the join in the backend here
     // this hits the database twice, but we avoid a branch and can simplify the code
     // additionally we can always return matching metadata even if query param filters lead to empty result set
-    let metadata = sqlx::query_as!(
-        TimeseriesMeta,
+    let metadata = sqlx::query_as::<_,TimeseriesMeta>(
         r#"
         select meta.id as id, identifier, unit, energy_carrier.name as carrier, consumption, description, local
         from meta left join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
-        identifier,
-    )
+    ).bind(identifier)
     .fetch_one(&pool)
     .await?;
     let rows = sqlx::query_as!(
