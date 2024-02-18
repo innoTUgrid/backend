@@ -36,6 +36,8 @@ services:
     volumes:
       - pgdata:/var/lib/timescaledb/data
       - ./initdb:/docker-entrypoint-initdb.d
+    command:
+      postgres -c work_mem=128MB -c maintenance_work_mem=256MB -c shared_buffers=1024MB
 
   smardscraper:
     container_name: smard
@@ -53,5 +55,12 @@ services:
       app:
         condition: service_healthy
     restart: on-failure
+
+  redis:
+    image: redis:latest
+    ports:
+      - "12758:6379"
+
 volumes:
   pgdata: {}
+
