@@ -58,10 +58,7 @@ async fn test_read_meta() {
     assert!(response.status().is_success());
 
     let body: MetaRows = response.json().await;
-    assert!(
-        body.values.iter().any(|x| x.identifier == meta.identifier),
-        "identifier not found in response"
-    );
+    assert!(body.values.iter().any(|x| x.identifier == meta.identifier))
 }
 
 #[tokio::test]
