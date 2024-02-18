@@ -16,9 +16,11 @@ mod error;
 mod handlers;
 mod import;
 mod infrastructure;
+mod loadtest;
 mod models;
 mod tests;
 
+mod cache;
 #[tokio::main]
 async fn main() {
     let config = AppConfig::new();
