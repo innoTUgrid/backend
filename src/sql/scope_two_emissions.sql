@@ -46,7 +46,7 @@ with total_sum as (
     from ts
              join meta on ts.meta_id = meta.id
     where
-        meta.identifier = 'total_load' and
+        meta.identifier = 'grid_reference_smard' and
         ts.series_timestamp between $1 and $2
 ), consumption as (
     select
