@@ -4,7 +4,6 @@ use rand::Rng;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-
 #[allow(dead_code)]
 async fn loadtest_index(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/").await?;
