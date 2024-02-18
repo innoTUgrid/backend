@@ -45,11 +45,11 @@ with total_sum as (
         ts.series_timestamp as timestamp,
         ts.series_value as value,
         meta.carrier as carrier,
-        case
-            when lag(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp) is not null
-                then extract(epoch from (ts.series_timestamp - lag(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp))) / 3600
-            else extract(epoch from (lead(ts.series_timestamp) over (partition by ts.meta_id order by ts.series_timestamp)) - ts.series_timestamp) / 3600
-            end as timestamp_distance
+        CASE
+            WHEN LAG(ts.series_timestamp) OVER (PARTITION BY ts.meta_id ORDER BY ts.series_timestamp) IS NOT NULL 
+            THEN LEAST(extract(epoch FROM (ts.series_timestamp - lag(ts.series_timestamp) over (PARTITION BY ts.meta_id ORDER BY ts.series_timestamp))) / 3600, 0.25)
+            ELSE LEAST(extract(epoch FROM (LEAD(ts.series_timestamp) OVER (PARTITION BY ts.meta_id ORDER BY ts.series_timestamp)) - ts.series_timestamp) / 3600, 0.25)
+        END AS timestamp_distance
     from ts
              join meta on ts.meta_id = meta.id
     where
