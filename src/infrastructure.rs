@@ -1,12 +1,13 @@
 use crate::app_config::AppConfig;
+use crate::cache::Cache;
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
 use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
 use crate::handlers::import::upload_timeseries;
 use crate::handlers::kpi::{
-    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_local_consumption,
-    get_scope_one_emissions, get_scope_two_emissions, get_self_consumption,
-    get_total_co2_emissions, get_total_consumption, get_total_production,
+    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_one_emissions,
+    get_scope_two_emissions, get_self_consumption, get_total_co2_emissions, get_total_consumption,
+    get_total_grid_electricity_cost, get_total_production,
 };
 use crate::handlers::meta::{add_meta, get_meta_by_identifier, read_meta};
 use crate::handlers::timeseries::{
@@ -21,6 +22,7 @@ use dotenv::dotenv;
 use sqlx::Postgres;
 use sqlx::{ConnectOptions, Pool};
 use std::str::FromStr;
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::log::LevelFilter;
 
@@ -59,6 +61,10 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/kpi/autarky/", get(get_autarky))
         .route("/v1/kpi/cost_savings/", get(get_cost_savings))
         .route("/v1/kpi/co2_savings/", get(get_co2_savings))
+        .route(
+            "/v1/kpi/total_grid_electricity_cost/",
+            get(get_total_grid_electricity_cost),
+        )
         .route("/v1/meta/", post(add_meta))
         .route("/v1/meta/:identifier/", get(get_meta_by_identifier))
         .route("/v1/meta/", get(read_meta))
