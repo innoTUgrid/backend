@@ -1,7 +1,10 @@
 use crate::error::ApiError;
 use crate::models::EmissionFactorSource;
 use crate::models::KpiResult;
-use crate::models::{Consumption, ConsumptionByCarrier, EmissionsByCarrier, Resampling, Result};
+use crate::models::{
+    Consumption, ConsumptionByCarrier, ConsumptionByConsumer, EmissionsByCarrier, Resampling,
+    Result,
+};
 
 use crate::models::TimestampFilter;
 
@@ -10,6 +13,9 @@ use axum::Json;
 use sqlx::{Pool, Postgres};
 use std::string::String;
 
+/*
+total_load / (locally produced energy)
+*/
 pub async fn get_consumption_production_ratio(
     timestamp_filter: &TimestampFilter,
     pool: &Pool<Postgres>,
@@ -31,7 +37,10 @@ pub async fn get_consumption_production_ratio(
             .await?;
     let consumption: f64 = consumption_record.value.unwrap_or(1.0);
     let production: f64 = production_record.value.unwrap_or(1.0);
-    let consumption_production_ratio = consumption / production;
+    let mut consumption_production_ratio = consumption;
+    if production != 0.0 {
+        consumption_production_ratio = consumption / production;
+    }
     Ok(consumption_production_ratio)
 }
 
@@ -70,7 +79,7 @@ pub async fn get_autarky(
 }
 
 /*
-return consumption for each carrier as timeseries in kwh
+return consumption by carrier as timeseries in kwh
 */
 pub async fn get_consumption(
     State(pool): State<Pool<Postgres>>,
@@ -126,6 +135,33 @@ pub async fn get_consumption(
         kpi_results.push(kpi_result);
     }
     Ok(Json(kpi_results))
+}
+
+/*
+return consumption by local consumers as timeseries in kwh
+*/
+pub async fn get_local_consumption(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    Query(resampling): Query<Resampling>,
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<Vec<ConsumptionByConsumer>>> {
+    if !resampling.validate_interval() {
+        return Err(ApiError::InvalidInterval);
+    }
+    let interval = resampling.map_interval()?;
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let consumers_consumption = sqlx::query_file_as!(
+        ConsumptionByConsumer,
+        "src/sql/local_consumption.sql",
+        from_timestamp,
+        to_timestamp,
+        interval
+    )
+    .fetch_all(&pool)
+    .await?;
+    Ok(Json(consumers_consumption))
 }
 
 pub async fn get_total_consumption(

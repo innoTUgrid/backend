@@ -1,5 +1,5 @@
 --
--- get total sum of energy in kWh produced
+-- get total sum of energy in kWh produced in time period
 ---
 with producers_ts as (
     select

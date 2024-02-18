@@ -407,6 +407,16 @@ pub struct ConsumptionByCarrier {
     pub local: bool,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ConsumptionByConsumer {
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub bucket: Option<OffsetDateTime>,
+    pub consumer_name: Option<String>,
+    pub value: Option<f64>,
+    pub unit: Option<String>,
+    pub carrier_name: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct EmissionFactorSource {
     #[serde(default = "EmissionFactorSource::default_source")]

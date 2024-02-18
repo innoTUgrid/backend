@@ -4,9 +4,9 @@ use crate::handlers::config::{get_config, put_config};
 use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
 use crate::handlers::import::upload_timeseries;
 use crate::handlers::kpi::{
-    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_scope_one_emissions,
-    get_scope_two_emissions, get_self_consumption, get_total_co2_emissions, get_total_consumption,
-    get_total_production,
+    get_autarky, get_co2_savings, get_consumption, get_cost_savings, get_local_consumption,
+    get_scope_one_emissions, get_scope_two_emissions, get_self_consumption,
+    get_total_co2_emissions, get_total_consumption, get_total_production,
 };
 use crate::handlers::meta::{add_meta, get_meta_by_identifier, read_meta};
 use crate::handlers::timeseries::{
@@ -49,6 +49,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .route("/v1/config/", post(put_config))
         .route("/v1/config/", get(get_config))
         .route("/v1/kpi/consumption/", get(get_consumption))
+        .route("/v1/kpi/local_consumption/", get(get_local_consumption))
         .route("/v1/kpi/total_consumption/", get(get_total_consumption))
         .route("/v1/kpi/total_production/", get(get_total_production))
         .route("/v1/kpi/scope_one_emissions/", get(get_scope_one_emissions))
