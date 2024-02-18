@@ -9,6 +9,7 @@ use axum::extract::{Query, State};
 use axum::Json;
 use sqlx::{Pool, Postgres};
 use std::string::String;
+use axum::http::Uri;
 
 /*
 total_load / (locally produced energy)
@@ -160,7 +161,6 @@ pub async fn get_local_consumption(
     .await?;
     Ok(Json(consumers_consumption))
 }
-
 pub async fn get_total_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     State(pool): State<Pool<Postgres>>,
@@ -217,16 +217,14 @@ pub async fn get_co2_savings(
     Query(resampling): Query<Resampling>,
     Query(ef_source): Query<EmissionFactorSource>,
     State(pool): State<Pool<Postgres>>,
+    uri: Uri,
 ) -> Result<Json<KpiResult>> {
     let ef_source = ef_source.get_source_or_default(&pool).await?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let key = format!(
-        "co2_savings_{}_{}_{:?}_{}",
-        from_timestamp, to_timestamp, pg_resampling_interval, ef_source
-    );
+    let key = format!("{}", uri);
     let mut cache = Cache::new().await.unwrap();
     let cached_result = cache.get(&key).await;
     match cached_result {
@@ -271,7 +269,7 @@ pub async fn get_cost_savings(
             .await?;
 
     let kpi = KpiResult {
-        value: cost_saving_query_results.cost_savings.unwrap(),
+        value: cost_saving_query_results.cost_savings.unwrap_or(0.0),
         name: String::from("cost_savings"),
         unit: Some(String::from("EUR")),
         from_timestamp: timestamp_filter.to.unwrap(),
@@ -285,19 +283,14 @@ pub async fn get_scope_one_emissions(
     Query(resampling): Query<Resampling>,
     Query(ef_source): Query<EmissionFactorSource>,
     State(pool): State<Pool<Postgres>>,
+    uri: Uri,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
     let ef_source = ef_source.get_source_or_default(&pool).await?;
     let interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
     let mut cache = Cache::new().await.unwrap();
-    let key = format!(
-        "scope_one_emissions_{}_{}_{:?}_{}",
-        timestamp_filter.from.unwrap(),
-        timestamp_filter.to.unwrap(),
-        resampling,
-        ef_source
-    );
+    let key = format!("{}", uri);
     let cached_result = cache.get(&key).await;
     match cached_result {
         Ok(result) => {
@@ -330,6 +323,7 @@ pub async fn get_scope_two_emissions(
     Query(resampling): Query<Resampling>,
     Query(emission_factor_source): Query<EmissionFactorSource>,
     State(pool): State<Pool<Postgres>>,
+    uri: Uri,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
     if !resampling.validate_interval() {
         return Err(ApiError::InvalidInterval);
@@ -340,13 +334,7 @@ pub async fn get_scope_two_emissions(
     let to_timestamp = timestamp_filter.to.unwrap();
 
     let mut cache = Cache::new().await.unwrap();
-    let key = format!(
-        "scope_two_emissions_{}_{}_{:?}_{}",
-        timestamp_filter.from.unwrap(),
-        timestamp_filter.to.unwrap(),
-        resampling,
-        ef_source
-    );
+    let key = format!("{}", uri);
     let cached_result = cache.get(&key).await;
     match cached_result {
         Ok(result) => {

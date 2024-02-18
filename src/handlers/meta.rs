@@ -9,17 +9,15 @@ use axum_extra::extract::WithRejection;
 use crate::cache::Cache;
 use sqlx::{Pool, Postgres, Row};
 use std::string::String;
+use axum::http::Uri;
 
 pub async fn read_meta(
     State(pool): State<Pool<Postgres>>,
     pagination: Query<Pagination>,
+    uri: Uri,
 ) -> Result<Json<MetaRows>, ApiError> {
     let mut cache = Cache::new().await.unwrap();
-    let key = format!(
-        "meta_{}_{}",
-        pagination.get_offset(),
-        pagination.get_per_page_or_default()
-    );
+    let key = format!("{}", uri);
     let cached = cache.get(&key).await;
     match cached {
         Ok(cached) => {
