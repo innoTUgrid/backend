@@ -7,9 +7,9 @@ use axum::Json;
 use axum_extra::extract::WithRejection;
 
 use crate::cache::Cache;
+use axum::http::Uri;
 use sqlx::{Pool, Postgres, Row};
 use std::string::String;
-use axum::http::Uri;
 
 pub async fn read_meta(
     State(pool): State<Pool<Postgres>>,

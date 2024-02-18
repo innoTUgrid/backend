@@ -6,10 +6,10 @@ use crate::models::{ConsumptionByConsumer, EmissionFactorSource};
 
 use crate::cache::Cache;
 use axum::extract::{Query, State};
+use axum::http::Uri;
 use axum::Json;
 use sqlx::{Pool, Postgres};
 use std::string::String;
-use axum::http::Uri;
 
 /*
 total_load / (locally produced energy)
