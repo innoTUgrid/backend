@@ -238,7 +238,7 @@ impl Default for Pagination {
     fn default() -> Self {
         Self {
             page: Some(0),
-            per_page: Some(1000),
+            per_page: Some(5000),
         }
     }
 }
@@ -248,7 +248,7 @@ impl Pagination {
     }
 
     pub fn get_per_page_or_default(&self) -> i32 {
-        self.per_page.unwrap_or(1000)
+        self.per_page.unwrap_or(5000)
     }
 
     pub fn get_offset(&self) -> i32 {
