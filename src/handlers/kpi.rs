@@ -1,13 +1,10 @@
 use crate::error::ApiError;
 use crate::models::EmissionFactorSource;
 use crate::models::KpiResult;
-use crate::models::{
-    Consumption, ConsumptionByCarrier, ConsumptionByConsumer, EmissionsByCarrier, Resampling,
-    Result,
-};
-
 use crate::models::TimestampFilter;
+use crate::models::{Consumption, ConsumptionByCarrier, EmissionsByCarrier, Resampling, Result};
 
+use crate::cache::Cache;
 use axum::extract::{Query, State};
 use axum::Json;
 use sqlx::{Pool, Postgres};
@@ -79,7 +76,7 @@ pub async fn get_autarky(
 }
 
 /*
-return consumption by carrier as timeseries in kwh
+return consumption for each carrier as timeseries in kwh
 */
 pub async fn get_consumption(
     State(pool): State<Pool<Postgres>>,
@@ -226,24 +223,39 @@ pub async fn get_co2_savings(
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let query_results = sqlx::query_file!(
-        "src/sql/co2_savings.sql",
-        from_timestamp,
-        to_timestamp,
-        pg_resampling_interval,
-        ef_source
-    )
-    .fetch_one(&pool)
-    .await?;
-
-    let kpi = KpiResult {
-        value: query_results.co2_savings.unwrap_or_default(),
-        name: String::from("co2_savings"),
-        unit: Some(String::from("kgco2eq")),
-        from_timestamp: timestamp_filter.from.unwrap(),
-        to_timestamp: timestamp_filter.to.unwrap(),
-    };
-    Ok(Json(kpi))
+    let key = format!(
+        "co2_savings_{}_{}_{:?}_{}",
+        from_timestamp, to_timestamp, pg_resampling_interval, ef_source
+    );
+    let mut cache = Cache::new().await.unwrap();
+    let cached_result = cache.get(&key).await;
+    match cached_result {
+        Ok(result) => {
+            let deserialized = serde_json::from_str(&result).unwrap();
+            return Ok(Json(deserialized));
+        }
+        Err(_) => {
+            let query_results = sqlx::query_file!(
+                "src/sql/co2_savings.sql",
+                from_timestamp,
+                to_timestamp,
+                pg_resampling_interval,
+                ef_source
+            )
+            .fetch_one(&pool)
+            .await?;
+            let kpi = KpiResult {
+                value: query_results.co2_savings.unwrap_or_default(),
+                name: String::from("co2_savings"),
+                unit: Some(String::from("kgco2eq")),
+                from_timestamp: timestamp_filter.from.unwrap(),
+                to_timestamp: timestamp_filter.to.unwrap(),
+            };
+            let serialized = serde_json::to_string(&kpi).unwrap();
+            cache.set(&key, &serialized, 5 * 60).await.unwrap();
+            Ok(Json(kpi))
+        }
+    }
 }
 
 pub async fn get_cost_savings(
@@ -274,25 +286,43 @@ pub async fn get_scope_one_emissions(
     Query(ef_source): Query<EmissionFactorSource>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
-    if !resampling.validate_interval() {
-        return Err(ApiError::InvalidInterval);
-    }
     let ef_source = ef_source.get_source_or_default(&pool).await?;
     let interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
-
-    let production_record = sqlx::query_file_as!(
-        EmissionsByCarrier,
-        "src/sql/scope_one_emissions.sql",
-        from_timestamp,
-        to_timestamp,
-        interval,
+    let mut cache = Cache::new().await.unwrap();
+    let key = format!(
+        "scope_one_emissions_{}_{}_{:?}_{}",
+        timestamp_filter.from.unwrap(),
+        timestamp_filter.to.unwrap(),
+        resampling,
         ef_source
-    )
-    .fetch_all(&pool)
-    .await?;
-    Ok(Json(production_record))
+    );
+    let cached_result = cache.get(&key).await;
+    match cached_result {
+        Ok(result) => {
+            let deserialized = serde_json::from_str(&result).unwrap();
+            return Ok(Json(deserialized));
+        }
+        Err(_) => {
+            if !resampling.validate_interval() {
+                return Err(ApiError::InvalidInterval);
+            }
+            let production_record = sqlx::query_file_as!(
+                EmissionsByCarrier,
+                "src/sql/scope_one_emissions.sql",
+                from_timestamp,
+                to_timestamp,
+                interval,
+                ef_source
+            )
+            .fetch_all(&pool)
+            .await?;
+            let serialized = serde_json::to_string(&production_record).unwrap();
+            cache.set(&key, &serialized, 5 * 60).await.unwrap();
+            Ok(Json(production_record))
+        }
+    }
 }
 
 pub async fn get_scope_two_emissions(
@@ -309,17 +339,36 @@ pub async fn get_scope_two_emissions(
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let consumption_record = sqlx::query_file_as!(
-        EmissionsByCarrier,
-        "src/sql/scope_two_emissions.sql",
-        from_timestamp,
-        to_timestamp,
-        pg_resampling_interval,
+    let mut cache = Cache::new().await.unwrap();
+    let key = format!(
+        "scope_two_emissions_{}_{}_{:?}_{}",
+        timestamp_filter.from.unwrap(),
+        timestamp_filter.to.unwrap(),
+        resampling,
         ef_source
-    )
-    .fetch_all(&pool)
-    .await?;
-    Ok(Json(consumption_record))
+    );
+    let cached_result = cache.get(&key).await;
+    match cached_result {
+        Ok(result) => {
+            let deserialized = serde_json::from_str(&result).unwrap();
+            return Ok(Json(deserialized));
+        }
+        Err(_) => {
+            let consumption_record = sqlx::query_file_as!(
+                EmissionsByCarrier,
+                "src/sql/scope_two_emissions.sql",
+                from_timestamp,
+                to_timestamp,
+                pg_resampling_interval,
+                ef_source
+            )
+            .fetch_all(&pool)
+            .await?;
+            let serialized = serde_json::to_string(&consumption_record).unwrap();
+            cache.set(&key, &serialized, 5 * 60).await.unwrap();
+            Ok(Json(consumption_record))
+        }
+    }
 }
 
 /*
@@ -374,6 +423,36 @@ pub async fn get_total_co2_emissions(
         value: total_emissions,
         name: String::from("total_co2_emissions"),
         unit: Some(String::from("kgco2eq")),
+        from_timestamp: timestamp_filter.from.unwrap(),
+        to_timestamp: timestamp_filter.to.unwrap(),
+    };
+    Ok(Json(kpi_result))
+}
+
+pub async fn get_total_grid_electricity_cost(
+    Query(timestamp_filter): Query<TimestampFilter>,
+    State(pool): State<Pool<Postgres>>,
+    Query(resampling): Query<Resampling>,
+) -> Result<Json<KpiResult>, ApiError> {
+    if !resampling.validate_interval() {
+        return Err(ApiError::InvalidInterval);
+    }
+    let pg_resampling_interval = resampling.map_interval()?;
+    let from_timestamp = timestamp_filter.from.unwrap();
+    let to_timestamp = timestamp_filter.to.unwrap();
+
+    let total_cost_kpi = sqlx::query_file!(
+        "src/sql/total_grid_electricity_cost.sql",
+        from_timestamp,
+        to_timestamp,
+        pg_resampling_interval
+    )
+    .fetch_one(&pool)
+    .await?;
+    let kpi_result = KpiResult {
+        value: total_cost_kpi.value.unwrap_or(0.0),
+        name: String::from("total_grid_electricity_cost"),
+        unit: Some(String::from("EUR")),
         from_timestamp: timestamp_filter.from.unwrap(),
         to_timestamp: timestamp_filter.to.unwrap(),
     };
