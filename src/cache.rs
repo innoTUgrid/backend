@@ -1,7 +1,7 @@
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisResult};
 
-const REDIS_CONNECTION_STRING: &str = "redis://redis:12758/";
+const REDIS_CONNECTION_STRING: &str = "redis://redis:6379/";
 
 pub struct Cache {
     connection: Connection,
