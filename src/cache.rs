@@ -1,7 +1,7 @@
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisResult};
-use serde::{Deserialize, Serialize};
-use serde_json;
+
+
 
 const REDIS_CONNECTION_STRING: &str = "redis://127.0.0.1:12758/";
 

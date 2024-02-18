@@ -24,7 +24,7 @@ pub async fn read_meta(
     match cached {
         Ok(cached) => {
             let meta_rows: MetaRows = serde_json::from_str(&cached).unwrap();
-            return Ok(Json(meta_rows));
+            Ok(Json(meta_rows))
         }
         Err(_) => {
             let query_offset = pagination.get_offset();

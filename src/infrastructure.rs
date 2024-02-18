@@ -1,5 +1,5 @@
 use crate::app_config::AppConfig;
-use crate::cache::Cache;
+
 use crate::error::ApiError;
 use crate::handlers::config::{get_config, put_config};
 use crate::handlers::emission_factor::{add_emission_factor, get_emission_factor};
@@ -22,7 +22,7 @@ use dotenv::dotenv;
 use sqlx::Postgres;
 use sqlx::{ConnectOptions, Pool};
 use std::str::FromStr;
-use std::sync::Arc;
+
 use tower_http::cors::{Any, CorsLayer};
 use tracing::log::LevelFilter;
 

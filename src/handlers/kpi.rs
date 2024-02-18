@@ -232,7 +232,7 @@ pub async fn get_co2_savings(
     match cached_result {
         Ok(result) => {
             let deserialized = serde_json::from_str(&result).unwrap();
-            return Ok(Json(deserialized));
+            Ok(Json(deserialized))
         }
         Err(_) => {
             let query_results = sqlx::query_file!(
@@ -302,7 +302,7 @@ pub async fn get_scope_one_emissions(
     match cached_result {
         Ok(result) => {
             let deserialized = serde_json::from_str(&result).unwrap();
-            return Ok(Json(deserialized));
+            Ok(Json(deserialized))
         }
         Err(_) => {
             if !resampling.validate_interval() {
@@ -351,7 +351,7 @@ pub async fn get_scope_two_emissions(
     match cached_result {
         Ok(result) => {
             let deserialized = serde_json::from_str(&result).unwrap();
-            return Ok(Json(deserialized));
+            Ok(Json(deserialized))
         }
         Err(_) => {
             let consumption_record = sqlx::query_file_as!(

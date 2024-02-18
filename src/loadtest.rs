@@ -4,43 +4,47 @@ use rand::Rng;
 use std::time::Duration;
 use time::OffsetDateTime;
 
+
+#[allow(dead_code)]
 async fn loadtest_index(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_autarky(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/kpi/autarky/").await?;
     Ok(())
 }
+#[allow(dead_code)]
 async fn loadtest_cost_savings(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/kpi/cost_savings/").await?;
     Ok(())
 }
+#[allow(dead_code)]
 async fn loadtest_co2_savings(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/kpi/co2_savings/?interval=1hour").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_consumption(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/kpi/consumption/?interval=1month").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_co2_emissions(user: &mut GooseUser) -> TransactionResult {
     let _response = user
         .get("/v1/kpi/total_co2_emissions/?interval=1month")
         .await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_scope_one_emissions(user: &mut GooseUser) -> TransactionResult {
     let _response = user
         .get("/v1/kpi/scope_one_emissions/?interval=1month")
         .await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_scope_two_emissions(user: &mut GooseUser) -> TransactionResult {
     let _response = user
         .get("/v1/kpi/scope_two_emissions/?interval=1month")
@@ -48,32 +52,34 @@ async fn loadtest_scope_two_emissions(user: &mut GooseUser) -> TransactionResult
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn loadtest_get_specific_metadata(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/meta/smard_market_price/").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_get_all_metadata(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/meta/").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_get_specific_timeseries(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/ts/smard_market_price/").await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_get_resampled_timeseries(user: &mut GooseUser) -> TransactionResult {
     let _response = user
         .get("/v1/ts/smard_market_price/resample/?interval=1hour")
         .await?;
     Ok(())
 }
-
+#[allow(dead_code)]
 async fn loadtest_get_emission_factor(user: &mut GooseUser) -> TransactionResult {
     let _response = user.get("/v1/emission_factors/?source=IPCC").await?;
     Ok(())
 }
+#[allow(dead_code)]
 async fn loadtest_post_random_meta(user: &mut GooseUser) -> TransactionResult {
     let identifier: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -124,6 +130,7 @@ async fn loadtest_post_random_meta(user: &mut GooseUser) -> TransactionResult {
     Ok(())
 }
 
+#[allow(dead_code)]
 #[tokio::main]
 async fn main() -> Result<(), GooseError> {
     GooseAttack::initialize()?
