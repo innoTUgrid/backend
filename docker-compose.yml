@@ -38,6 +38,8 @@ services:
       - ./initdb:/docker-entrypoint-initdb.d
     command:
       postgres -c work_mem=128MB -c maintenance_work_mem=256MB -c shared_buffers=1024MB
+    depends_on:
+      - redis
 
   smardscraper:
     container_name: smard
