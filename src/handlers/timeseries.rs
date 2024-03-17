@@ -1,3 +1,4 @@
+use crate::infrastructure::AppState;
 use crate::models::TimeseriesMeta;
 use crate::models::{Datapoint, ResampledDatapoint, ResampledTimeseries, Resampling, Result};
 use crate::models::{NewDatapoint, TimeseriesBody};
@@ -6,13 +7,11 @@ use crate::models::{Timeseries, TimestampFilter};
 use axum::extract::{Path, Query, State};
 use axum::Json;
 
-use sqlx::{Pool, Postgres};
-
 use std::string::String;
 
 /// timeseries values for specific metadata and a given interval
 pub async fn resample_timeseries_by_identifier(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Path(identifier): Path<String>,
     Query(resampling): Query<Resampling>,
     Query(timestamp_filter): Query<TimestampFilter>,
@@ -33,7 +32,7 @@ pub async fn resample_timeseries_by_identifier(
         where meta.identifier = $1"#,
     )
     .bind(identifier)
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     let timestamp_from = timestamp_filter.from.unwrap();
@@ -57,7 +56,7 @@ pub async fn resample_timeseries_by_identifier(
         timestamp_from,
         timestamp_to,
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     let response = ResampledTimeseries {
@@ -69,7 +68,7 @@ pub async fn resample_timeseries_by_identifier(
 
 /// Get all timeseries values for specific metadata
 pub async fn get_timeseries_by_identifier(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Path(identifier): Path<String>,
     Query(timestamp_filter): Query<TimestampFilter>,
 ) -> Result<Json<Timeseries>> {
@@ -84,7 +83,7 @@ pub async fn get_timeseries_by_identifier(
         from meta left join energy_carrier on meta.carrier = energy_carrier.id
         where meta.identifier = $1"#,
     ).bind(identifier)
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
     let rows = sqlx::query_as!(
         Datapoint,
@@ -104,7 +103,7 @@ pub async fn get_timeseries_by_identifier(
         from_timestamp,
         to_timestamp,
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
     let response = Timeseries {
         datapoints: rows,
@@ -114,7 +113,7 @@ pub async fn get_timeseries_by_identifier(
 }
 
 pub async fn add_timeseries(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     req: Json<TimeseriesBody<NewDatapoint>>,
 ) -> Result<Json<TimeseriesBody<Datapoint>>> {
     let mut identifiers = req
@@ -132,7 +131,7 @@ pub async fn add_timeseries(
         where meta.identifier IN (select * from unnest($1::text[]))"#,
         &identifiers,
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     let entries = req
@@ -156,7 +155,7 @@ pub async fn add_timeseries(
         &entries.iter().map(|x| x.1).collect::<Vec<_>>(),
         &entries.iter().map(|x| x.2.id).collect::<Vec<_>>(),
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
     Ok(Json(TimeseriesBody { timeseries }))
 }

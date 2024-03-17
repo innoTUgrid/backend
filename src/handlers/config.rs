@@ -1,13 +1,13 @@
 use crate::error::ApiError;
+use crate::infrastructure::AppState;
 use crate::models::Result;
 use axum::extract::State;
 use serde_json::Value;
-use sqlx::{Pool, Postgres};
 
 use axum::Json;
 
 pub async fn put_config(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     sqlx::query!(
@@ -19,19 +19,19 @@ pub async fn put_config(
         "#,
         payload
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     Ok(Json(payload))
 }
 
-pub async fn get_config(State(pool): State<Pool<Postgres>>) -> Result<Json<Value>, ApiError> {
+pub async fn get_config(State(app_state): State<AppState>) -> Result<Json<Value>, ApiError> {
     let row = sqlx::query!(
         r#"
         select config from config
         "#,
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     Ok(Json(row.config))

@@ -1,13 +1,13 @@
 use crate::error::ApiError;
+use crate::infrastructure::AppState;
 use crate::models::{
     CreateEmissionFactorRequest, CreateEmissionFactorResponse, EmissionFactor, EmissionFactorFilter,
 };
 use axum::extract::{Query, State};
 use axum::Json;
-use sqlx::{Pool, Postgres};
 
 pub async fn add_emission_factor(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     request: Json<CreateEmissionFactorRequest>,
 ) -> Result<Json<CreateEmissionFactorResponse>, ApiError> {
     let emission_factor: CreateEmissionFactorResponse = sqlx::query_as!(
@@ -26,14 +26,14 @@ pub async fn add_emission_factor(
         request.source,
         request.source_url.as_deref(),
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     Ok(Json(emission_factor))
 }
 
 pub async fn get_emission_factor(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Query(filter): Query<EmissionFactorFilter>,
 ) -> Result<Json<Vec<EmissionFactor>>, ApiError> {
     let factors = sqlx::query_as!(
@@ -57,7 +57,7 @@ pub async fn get_emission_factor(
         filter.source.as_deref(),
         filter.carrier.as_deref(),
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     Ok(Json(factors))

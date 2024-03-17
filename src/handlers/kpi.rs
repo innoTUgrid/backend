@@ -1,4 +1,5 @@
 use crate::error::ApiError;
+use crate::infrastructure::AppState;
 use crate::models::KpiResult;
 use crate::models::TimestampFilter;
 use crate::models::{Consumption, ConsumptionByCarrier, EmissionsByCarrier, Resampling, Result};
@@ -44,10 +45,10 @@ pub async fn get_consumption_production_ratio(
 
 pub async fn get_self_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<KpiResult>> {
     let consumption_production_ratio =
-        get_consumption_production_ratio(&timestamp_filter, &pool).await?;
+        get_consumption_production_ratio(&timestamp_filter, &app_state.db).await?;
     let self_consumption = f64::min(consumption_production_ratio, 1.0);
     let kpi_result = KpiResult {
         value: self_consumption,
@@ -61,10 +62,10 @@ pub async fn get_self_consumption(
 
 pub async fn get_autarky(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<KpiResult>> {
     let consumption_production_ratio =
-        get_consumption_production_ratio(&timestamp_filter, &pool).await?;
+        get_consumption_production_ratio(&timestamp_filter, &app_state.db).await?;
     let autarky = f64::min(1.0 / consumption_production_ratio, 1.0);
     let kpi_result = KpiResult {
         value: autarky,
@@ -80,7 +81,7 @@ pub async fn get_autarky(
 return consumption for each carrier as timeseries in kwh
 */
 pub async fn get_consumption(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
 ) -> Result<Json<Vec<ConsumptionByCarrier>>> {
@@ -94,7 +95,7 @@ pub async fn get_consumption(
         from_timestamp,
         to_timestamp,
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     let local_production_records: Vec<Consumption> = sqlx::query_file_as!(
@@ -104,7 +105,7 @@ pub async fn get_consumption(
         to_timestamp,
         pg_resampling_interval,
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     let mut kpi_results: Vec<ConsumptionByCarrier> = vec![];
@@ -141,7 +142,7 @@ return consumption by local consumers as timeseries in kwh
 pub async fn get_local_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<Vec<ConsumptionByConsumer>>> {
     if !resampling.validate_interval() {
         return Err(ApiError::InvalidInterval);
@@ -157,13 +158,13 @@ pub async fn get_local_consumption(
         to_timestamp,
         interval
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
     Ok(Json(consumers_consumption))
 }
 pub async fn get_total_consumption(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<KpiResult>, ApiError> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -173,7 +174,7 @@ pub async fn get_total_consumption(
         from_timestamp,
         to_timestamp,
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     let consumption: f64 = consumption_record.value.unwrap_or(0.0);
@@ -191,14 +192,14 @@ pub async fn get_total_consumption(
 */
 pub async fn get_total_production(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<KpiResult>, ApiError> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
     let production_record =
         sqlx::query_file!("src/sql/total_production.sql", from_timestamp, to_timestamp,)
-            .fetch_one(&pool)
+            .fetch_one(&app_state.db)
             .await?;
 
     let production: f64 = production_record.value.unwrap_or(0.0);
@@ -216,16 +217,16 @@ pub async fn get_co2_savings(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     Query(ef_source): Query<EmissionFactorSource>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     uri: Uri,
 ) -> Result<Json<KpiResult>> {
-    let ef_source = ef_source.get_source_or_default(&pool).await?;
+    let ef_source = ef_source.get_source_or_default(&app_state.db).await?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
     let key = format!("{}", uri);
-    let mut cache = Cache::new().await.unwrap();
+    let mut cache = Cache::new(&app_state.config.redis_url).await.unwrap();
     let cached_result = cache.get(&key).await;
     match cached_result {
         Ok(result) => {
@@ -240,7 +241,7 @@ pub async fn get_co2_savings(
                 pg_resampling_interval,
                 ef_source
             )
-            .fetch_one(&pool)
+            .fetch_one(&app_state.db)
             .await?;
             let kpi = KpiResult {
                 value: query_results.co2_savings.unwrap_or_default(),
@@ -258,14 +259,14 @@ pub async fn get_co2_savings(
 
 pub async fn get_cost_savings(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<KpiResult>> {
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
     let cost_saving_query_results =
         sqlx::query_file!("src/sql/cost_savings.sql", from_timestamp, to_timestamp,)
-            .fetch_one(&pool)
+            .fetch_one(&app_state.db)
             .await?;
 
     let kpi = KpiResult {
@@ -282,14 +283,14 @@ pub async fn get_scope_one_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     Query(ef_source): Query<EmissionFactorSource>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     uri: Uri,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
-    let ef_source = ef_source.get_source_or_default(&pool).await?;
+    let ef_source = ef_source.get_source_or_default(&app_state.db).await?;
     let interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
-    let mut cache = Cache::new().await.unwrap();
+    let mut cache = Cache::new(&app_state.config.redis_url).await.unwrap();
     let key = format!("{}", uri);
     let cached_result = cache.get(&key).await;
     match cached_result {
@@ -309,7 +310,7 @@ pub async fn get_scope_one_emissions(
                 interval,
                 ef_source
             )
-            .fetch_all(&pool)
+            .fetch_all(&app_state.db)
             .await?;
             let serialized = serde_json::to_string(&production_record).unwrap();
             cache.set(&key, &serialized, 5 * 60).await.unwrap();
@@ -322,18 +323,20 @@ pub async fn get_scope_two_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
     Query(resampling): Query<Resampling>,
     Query(emission_factor_source): Query<EmissionFactorSource>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     uri: Uri,
 ) -> Result<Json<Vec<EmissionsByCarrier>>> {
     if !resampling.validate_interval() {
         return Err(ApiError::InvalidInterval);
     }
-    let ef_source = emission_factor_source.get_source_or_default(&pool).await?;
+    let ef_source = emission_factor_source
+        .get_source_or_default(&app_state.db)
+        .await?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
 
-    let mut cache = Cache::new().await.unwrap();
+    let mut cache = Cache::new(&app_state.config.redis_url).await.unwrap();
     let key = format!("{}", uri);
     let cached_result = cache.get(&key).await;
     match cached_result {
@@ -350,7 +353,7 @@ pub async fn get_scope_two_emissions(
                 pg_resampling_interval,
                 ef_source
             )
-            .fetch_all(&pool)
+            .fetch_all(&app_state.db)
             .await?;
             let serialized = serde_json::to_string(&consumption_record).unwrap();
             cache.set(&key, &serialized, 5 * 60).await.unwrap();
@@ -363,14 +366,16 @@ pub async fn get_scope_two_emissions(
 */
 pub async fn get_total_co2_emissions(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Query(resampling): Query<Resampling>,
     Query(emission_factor_source): Query<EmissionFactorSource>,
 ) -> Result<Json<KpiResult>, ApiError> {
     if !resampling.validate_interval() {
         return Err(ApiError::InvalidInterval);
     }
-    let ef_source = emission_factor_source.get_source_or_default(&pool).await?;
+    let ef_source = emission_factor_source
+        .get_source_or_default(&app_state.db)
+        .await?;
     let pg_resampling_interval = resampling.map_interval()?;
     let from_timestamp = timestamp_filter.from.unwrap();
     let to_timestamp = timestamp_filter.to.unwrap();
@@ -383,7 +388,7 @@ pub async fn get_total_co2_emissions(
         pg_resampling_interval,
         ef_source
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
 
     let scope_one = sqlx::query_file_as!(
@@ -394,7 +399,7 @@ pub async fn get_total_co2_emissions(
         pg_resampling_interval,
         ef_source
     )
-    .fetch_all(&pool)
+    .fetch_all(&app_state.db)
     .await?;
     let sum_scope_one: f64 = scope_one
         .iter()
@@ -419,7 +424,7 @@ pub async fn get_total_co2_emissions(
 
 pub async fn get_total_grid_electricity_cost(
     Query(timestamp_filter): Query<TimestampFilter>,
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Query(resampling): Query<Resampling>,
 ) -> Result<Json<KpiResult>, ApiError> {
     if !resampling.validate_interval() {
@@ -435,7 +440,7 @@ pub async fn get_total_grid_electricity_cost(
         to_timestamp,
         pg_resampling_interval
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
     let kpi_result = KpiResult {
         value: total_cost_kpi.value.unwrap_or(0.0),

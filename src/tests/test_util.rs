@@ -15,8 +15,9 @@ pub fn get_random_string(size: usize) -> String {
 }
 
 pub async fn get_client() -> TestClient {
-    let pool = create_connection_pool(&AppConfig::new()).await;
-    let router = create_router(pool);
+    let config = AppConfig::new();
+    let pool = create_connection_pool(&config).await;
+    let router = create_router(pool, &config);
 
     TestClient::new(router)
 }

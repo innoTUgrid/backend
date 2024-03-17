@@ -1,6 +1,7 @@
 use crate::error::ApiError;
 use crate::import::import;
 
+use crate::infrastructure::AppState;
 use crate::models::Result;
 
 use axum::extract::Multipart;
@@ -8,7 +9,6 @@ use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
 
-use sqlx::{Pool, Postgres};
 use std::string::String;
 /*
 upload a file from a form and bulk insert it into the database
@@ -16,7 +16,7 @@ docs: https://docs.rs/axum/latest/axum/extract/multipart/struct.Field.html
 test: curl -F upload=@initdb/inno2grid_backend_test.csv 127.0.0.1:3000/v1/ts/upload
 */
 pub async fn upload_timeseries(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Query(import_config_string): Query<String>,
     mut multipart: Multipart,
 ) -> Result<Json<String>, ApiError> {
@@ -27,7 +27,7 @@ pub async fn upload_timeseries(
         let text = field.text().await.unwrap();
         let reader = csv::ReaderBuilder::new().from_reader(text.as_bytes());
 
-        import(&pool, vec![reader], &import_config).await?;
+        import(&app_state.db, vec![reader], &import_config).await?;
     }
     Ok(Json("File uploaded successfully".to_string()))
 }

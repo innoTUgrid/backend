@@ -68,7 +68,7 @@ async fn main() {
         return;
     }
 
-    let app = create_router(pool);
+    let app = create_router(pool, &config);
 
     tracing::info!("Listening on port {}", config.port);
     // run it with hyper on localhost:3000

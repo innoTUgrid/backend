@@ -39,6 +39,7 @@ jobs:
         run: cargo test
         env:
           DATABASE_URL: postgres://db_user:db_password@localhost:8192/db_name
+          REDIS_URL: redis://localhost:12758
 
 
 

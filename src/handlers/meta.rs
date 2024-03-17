@@ -1,5 +1,6 @@
 use crate::error::ApiError;
 
+use crate::infrastructure::AppState;
 use crate::models::{MetaInput, MetaOutput, MetaRows, Pagination, Result};
 
 use axum::extract::{Path, Query, State};
@@ -8,15 +9,15 @@ use axum_extra::extract::WithRejection;
 
 use crate::cache::Cache;
 use axum::http::Uri;
-use sqlx::{Pool, Postgres, Row};
+use sqlx::Row;
 use std::string::String;
 
 pub async fn read_meta(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     pagination: Query<Pagination>,
     uri: Uri,
 ) -> Result<Json<MetaRows>, ApiError> {
-    let mut cache = Cache::new().await.unwrap();
+    let mut cache = Cache::new(&app_state.config.redis_url).await.unwrap();
     let key = format!("{}", uri);
     let cached = cache.get(&key).await;
     match cached {
@@ -51,7 +52,7 @@ pub async fn read_meta(
             );
             meta_query = meta_query.bind(query_offset);
             meta_query = meta_query.bind(pagination.get_per_page_or_default());
-            let meta_rows = meta_query.fetch_all(&pool).await?;
+            let meta_rows = meta_query.fetch_all(&app_state.db).await?;
             let mut json_values: Vec<MetaOutput> = vec![];
             for row in &meta_rows {
                 let meta_value = MetaOutput {
@@ -78,7 +79,7 @@ pub async fn read_meta(
 }
 
 pub async fn get_meta_by_identifier(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     Path(identifier): Path<String>,
 ) -> Result<Json<MetaOutput>, ApiError> {
     /* NOTE: using a compile time checked query va query_as! results in a nullability error for the carrier field. Might have something to do with https://github.com/launchbadge/sqlx/issues/1852 */
@@ -107,13 +108,13 @@ pub async fn get_meta_by_identifier(
             ",
     )
     .bind(identifier)
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
     Ok(Json(meta_output))
 }
 
 pub async fn add_meta(
-    State(pool): State<Pool<Postgres>>,
+    State(app_state): State<AppState>,
     WithRejection(Json(meta), _): WithRejection<Json<MetaInput>, ApiError>,
 ) -> Result<Json<MetaOutput>, ApiError> {
     let meta_output: MetaOutput = sqlx::query_as!(
@@ -148,7 +149,7 @@ pub async fn add_meta(
         meta.description,
         meta.local,
     )
-    .fetch_one(&pool)
+    .fetch_one(&app_state.db)
     .await?;
 
     Ok(Json(meta_output))

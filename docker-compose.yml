@@ -61,7 +61,7 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "12758:6379"
+      - '${REDIS_EXPOSE_PORT:-12789}:6379'
 
 volumes:
   pgdata: {}

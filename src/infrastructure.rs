@@ -42,9 +42,19 @@ async fn fallback_handler() -> Result<ApiError> {
     Err(ApiError::NotFound)
 }
 
-pub fn create_router(pool: Pool<Postgres>) -> Router {
+#[derive(Clone)]
+pub struct AppState {
+    pub db: Pool<Postgres>,
+    pub config: AppConfig,
+}
+
+pub fn create_router(pool: Pool<Postgres>, app_config: &AppConfig) -> Router {
     // for swagger-ui and mitigating common errors for development
     let cors = CorsLayer::new().allow_origin(Any).allow_headers(Any);
+    let app_state = AppState {
+        db: pool,
+        config: app_config.clone(),
+    };
 
     Router::new()
         .route("/", get(ping))
@@ -81,7 +91,7 @@ pub fn create_router(pool: Pool<Postgres>) -> Router {
         .fallback(get(fallback_handler))
         .layer(cors)
         // limit file size to 10MB
-        .with_state(pool)
+        .with_state(app_state)
         .layer(DefaultBodyLimit::max(1024 * 1024 * 10))
 }
 
@@ -103,8 +113,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors() {
-        let pool = create_connection_pool(&AppConfig::new()).await;
-        let router = crate::create_router(pool);
+        let config = AppConfig::new();
+        let pool = create_connection_pool(&config).await;
+        let router = crate::create_router(pool, &config);
         let client = TestClient::new(router);
 
         let response = client

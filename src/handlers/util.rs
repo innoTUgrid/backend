@@ -1,10 +1,8 @@
-use crate::models::PingResponse;
+use crate::{infrastructure::AppState, models::PingResponse};
 
 use axum::extract::State;
 use axum::Json;
 
-use sqlx::{Pool, Postgres};
-
-pub async fn ping(State(_pool): State<Pool<Postgres>>) -> Json<PingResponse> {
+pub async fn ping(State(_app_state): State<AppState>) -> Json<PingResponse> {
     Json(PingResponse::default())
 }
