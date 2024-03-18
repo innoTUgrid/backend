@@ -1,11 +1,13 @@
-FROM rust:1.73-buster as builder
+FROM rust:1.74-buster as builder
 
 WORKDIR /app
 
 # Accept the build argument
 ARG DATABASE_URL
+ARG REDIS_URL
 # Make sure to use the ARG in ENV
 ENV DATABASE_URL=$DATABASE_URL
+ENV REDIS_URL=$REDIS_URL
 
 COPY . .
 

@@ -9,7 +9,7 @@ default-run = "inno2grid-backend"
 [dependencies]
 #axum = "0.6.20"
 axum = { version = "0.6.20", features = ["multipart"]}
-sqlx = { version =  "0.7.2" , features = ["postgres", "runtime-tokio", "time"]}
+sqlx = { version =  "0.7.4" , features = ["postgres", "runtime-tokio", "time"]}
 tokio = { version = "1.33.0", features = ["full"] }
 dotenv = "0.15.0"
 serde = { version = "1.0.192", features = [] }
